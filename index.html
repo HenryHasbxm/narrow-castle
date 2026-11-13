@@ -1,0 +1,3249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NARROW CASTLE — Serverless 3D Archery CTF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================================
+       1. BASE & RESET STYLES (style.css)
+       ========================================================================= */
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #141d2e;
+      font-family: 'Inter', sans-serif;
+      color: #f8fafc;
+      touch-action: none;
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* =========================================================================
+       2. HUD & SCOREBOARD
+       ========================================================================= */
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .top-bar {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: min(96vw, 660px);
+    }
+
+    .scoreboard {
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 5px 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      gap: 14px;
+    }
+
+    .team-score {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+    }
+
+    .team-label {
+      font-size: 0.76rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .score-num {
+      font-family: 'Cinzel', serif;
+      font-size: 1.55rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .blue-text { color: #38bdf8; }
+    .red-text { color: #fb7185; }
+
+    .score-divider {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #94a3b8;
+      padding: 2px 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+    }
+
+    .flag-statuses {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .flag-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .flag-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .flag-dot.blue { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
+    .flag-dot.red { background: #fb7185; box-shadow: 0 0 8px #fb7185; }
+
+    .flag-badge.alert {
+      border-color: #facc15;
+      animation: pulseBadge 1s infinite alternate;
+    }
+
+    @keyframes pulseBadge {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+
+    /* Top-Left Room & Network Status Pill */
+    .net-pill {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 6px 11px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      pointer-events: auto;
+    }
+
+    .net-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+    }
+
+    .net-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .net-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    #carrying-banner {
+      position: absolute;
+      top: 96px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, rgba(225, 29, 72, 0.92), rgba(244, 63, 94, 0.92));
+      border: 2px solid #fecdd3;
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      padding: 5px 16px;
+      border-radius: 999px;
+      box-shadow: 0 6px 20px rgba(225, 29, 72, 0.45);
+      display: none;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* Center Crosshair & Bow Charge Ring */
+    .crosshair-wrap {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90px;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .crosshair-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+      z-index: 3;
+    }
+
+    .ch-tick {
+      position: absolute;
+      background: #ffffff;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.85);
+      border-radius: 2px;
+    }
+
+    .ch-top, .ch-bottom {
+      width: 2px;
+      height: 9px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .ch-left, .ch-right {
+      height: 2px;
+      width: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    #charge-ring {
+      position: absolute;
+      width: 64px;
+      height: 64px;
+      transform: rotate(-90deg);
+      pointer-events: none;
+    }
+
+    #charge-arc {
+      fill: none;
+      stroke: #facc15;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 176;
+      stroke-dashoffset: 176;
+      filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.7));
+    }
+
+    #hitmarker {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      opacity: 0;
+      transform: scale(0.7);
+      transition: opacity 0.08s ease, transform 0.08s ease;
+    }
+
+    #hitmarker.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    #hitmarker::before, #hitmarker::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 22px;
+      height: 2.5px;
+      background: #ffffff;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.9);
+    }
+
+    #hitmarker.headshot::before, #hitmarker.headshot::after {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    #hitmarker::before { transform: translate(-50%, -50%) rotate(45deg); }
+    #hitmarker::after { transform: translate(-50%, -50%) rotate(-45deg); }
+
+    /* Kill Feed (Top Right) */
+    #killfeed {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+      max-width: 290px;
+    }
+
+    .kill-item {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(6px);
+      border-left: 3px solid #94a3b8;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      animation: slideInRight 0.2s ease-out;
+    }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Health Panel */
+    .health-panel {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(15, 23, 42, 0.84);
+      backdrop-filter: blur(8px);
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 8px 14px;
+      width: 205px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      transition: bottom 0.2s ease;
+    }
+
+    body.touch-mode .health-panel {
+      bottom: auto;
+      top: 52px;
+      left: 12px;
+      width: 165px;
+      padding: 6px 10px;
+    }
+
+    .health-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .health-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: #94a3b8;
+    }
+
+    #health-value {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #4ade80;
+    }
+
+    .health-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    #health-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #4ade80);
+      border-radius: 999px;
+      transition: width 0.15s ease, background 0.2s ease;
+    }
+
+    .bottom-hint {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.7);
+      background: rgba(15, 23, 42, 0.68);
+      padding: 5px 10px;
+      border-radius: 8px;
+      pointer-events: auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    body.touch-mode .bottom-hint {
+      display: none;
+    }
+
+    /* =========================================================================
+       3. MOBILE / TOUCH ON-SCREEN CONTROLS
+       ========================================================================= */
+    #touch-controls {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 12;
+      display: none;
+    }
+
+    body.touch-mode #touch-controls {
+      display: block;
+    }
+
+    /* Left Half Touch Zone for Floating Virtual Joystick */
+    #joystick-zone {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 48%;
+      height: 100%;
+      pointer-events: auto;
+    }
+
+    #joystick-base {
+      position: absolute;
+      width: 116px;
+      height: 116px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.45);
+      border: 2px solid rgba(255, 255, 255, 0.28);
+      transform: translate(-50%, -50%);
+      display: none;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    #joystick-knob {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #f8fafc, #94a3b8);
+      border: 2px solid rgba(15, 23, 42, 0.6);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Right Half Touch Zone for Camera Look */
+    #look-zone {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 52%;
+      height: 100%;
+      pointer-events: auto;
+    }
+
+    /* Dedicated Right-Thumb Draw/Fire & Jump Buttons */
+    #touch-fire-btn {
+      position: absolute;
+      right: 26px;
+      bottom: 30px;
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(250, 204, 21, 0.88), rgba(217, 119, 6, 0.92));
+      border: 3px solid #fef08a;
+      color: #0f172a;
+      font-weight: 900;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 28px rgba(245, 158, 11, 0.45);
+      pointer-events: auto;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    #touch-fire-btn.active {
+      transform: scale(1.12);
+      background: radial-gradient(circle at 30% 30%, #ef4444, #b91c1c);
+      border-color: #fecaca;
+      color: #fff;
+      box-shadow: 0 0 32px rgba(239, 68, 68, 0.75);
+    }
+
+    #touch-jump-btn {
+      position: absolute;
+      right: 132px;
+      bottom: 34px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      color: #f8fafc;
+      font-weight: 800;
+      font-size: 0.72rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+    }
+
+    #touch-jump-btn:active {
+      transform: scale(0.92);
+      background: rgba(56, 189, 248, 0.45);
+    }
+
+    #touch-zoom-btn {
+      position: absolute;
+      right: 36px;
+      bottom: 136px;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      color: #f8fafc;
+      font-weight: 800;
+      font-size: 0.68rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    #touch-zoom-btn.active {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.35);
+    }
+
+    #touch-menu-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      pointer-events: auto;
+    }
+
+    /* =========================================================================
+       4. VIGNETTE, RESPAWN & LOBBY MODAL
+       ========================================================================= */
+    #damage-vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle, transparent 58%, rgba(220, 38, 38, 0.58) 100%);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      z-index: 9;
+    }
+
+    #respawn-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #respawn-overlay h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 2.2rem;
+      color: #fb7185;
+      margin-bottom: 8px;
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    #menu-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 15, 28, 0.82);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      padding: 14px;
+      overflow-y: auto;
+    }
+
+    .menu-card {
+      background: linear-gradient(160deg, rgba(30, 41, 59, 0.97), rgba(15, 23, 42, 0.99));
+      border: 2px solid rgba(255, 255, 255, 0.16);
+      border-radius: 22px;
+      padding: 22px 24px;
+      max-width: 560px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+    }
+
+    .game-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .menu-card h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.65rem, 4vw, 2.35rem);
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #ffffff 30%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .menu-subtitle {
+      color: #cbd5e1;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+
+    .lobby-section {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .lobby-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 480px) {
+      .lobby-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+
+    .text-input {
+      width: 100%;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 10px;
+      padding: 8px 11px;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .text-input:focus {
+      border-color: #38bdf8;
+    }
+
+    .seg-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .seg-group.two-col {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .seg-btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 9px;
+      padding: 7px 6px;
+      color: #cbd5e1;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .seg-btn.active {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+
+    .seg-btn.active.red-opt {
+      background: rgba(251, 113, 133, 0.22);
+      border-color: #fb7185;
+    }
+
+    .class-desc {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px 20px;
+      font-size: 0.98rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #0f172a;
+      background: linear-gradient(135deg, #facc15, #f59e0b);
+      border: none;
+      border-radius: 13px;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.35);
+      transition: transform 0.15s ease, filter 0.15s ease;
+      margin-bottom: 10px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.06);
+    }
+
+    .private-box {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr auto;
+      gap: 7px;
+      align-items: center;
+    }
+
+    @media (max-width: 480px) {
+      .private-box {
+        grid-template-columns: 1fr 1fr;
+      }
+      .private-box button {
+        grid-column: span 2;
+      }
+    }
+
+    .btn-secondary {
+      padding: 9px 14px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #f8fafc;
+      background: rgba(56, 189, 248, 0.22);
+      border: 1px solid #38bdf8;
+      border-radius: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(56, 189, 248, 0.35);
+    }
+
+    .lobby-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+
+    #lobby-status {
+      color: #facc15;
+      font-weight: 700;
+      font-size: 0.76rem;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+
+    /* Toast Notification Banner */
+    #toast-msg {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid #38bdf8;
+      color: #f8fafc;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 40;
+    }
+
+    #toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="damage-vignette"></div>
+  <div id="toast-msg"></div>
+
+  <!-- Minimalist Tactical HUD -->
+  <div id="hud">
+    <!-- Network & Room Info -->
+    <div class="net-pill">
+      <span class="net-dot" id="net-dot"></span>
+      <span id="room-label">ROOM: PUBLIC-1</span>
+      <span id="role-label" style="color:#facc15;">[HOST]</span>
+      <button class="net-btn" id="copy-invite-btn" title="Copy Shareable Room URL">INVITE</button>
+      <button class="net-btn" id="toggle-touch-hud-btn" title="Toggle Touch Controls">TOUCH UI</button>
+    </div>
+
+    <div class="top-bar">
+      <div class="scoreboard">
+        <div class="team-score">
+          <span class="team-label blue-text">BLUE</span>
+          <span class="score-num blue-text" id="blue-score">0</span>
+        </div>
+        <span class="score-divider">4v4 CTF • FIRST TO 3</span>
+        <div class="team-score">
+          <span class="score-num red-text" id="red-score">0</span>
+          <span class="team-label red-text">RED</span>
+        </div>
+      </div>
+
+      <div class="flag-statuses">
+        <div class="flag-badge" id="blue-flag-badge">
+          <span class="flag-dot blue"></span>
+          <span id="blue-flag-text">Blue Flag: At Base</span>
+        </div>
+        <div class="flag-badge" id="red-flag-badge">
+          <span class="flag-dot red"></span>
+          <span id="red-flag-text">Red Flag: At Base</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="carrying-banner">⚑ YOU HAVE THE ENEMY FLAG — RETURN TO BASE!</div>
+
+    <!-- Center Crosshair + Charge Ring -->
+    <div class="crosshair-wrap">
+      <svg id="charge-ring" viewBox="0 0 64 64">
+        <circle id="charge-arc" cx="32" cy="32" r="28"></circle>
+      </svg>
+      <div class="crosshair-dot"></div>
+      <div class="ch-tick ch-top" id="ch-top"></div>
+      <div class="ch-tick ch-bottom" id="ch-bottom"></div>
+      <div class="ch-tick ch-left" id="ch-left"></div>
+      <div class="ch-tick ch-right" id="ch-right"></div>
+      <div id="hitmarker"></div>
+    </div>
+
+    <!-- Kill Feed -->
+    <div id="killfeed"></div>
+
+    <!-- Health Panel -->
+    <div class="health-panel">
+      <div class="health-header">
+        <span class="health-title">HEALTH</span>
+        <span id="health-value">100</span>
+      </div>
+      <div class="health-bar-bg">
+        <div id="health-bar-fill"></div>
+      </div>
+    </div>
+
+    <div class="bottom-hint">
+      <span>WASD Move • Space Jump • LMB Draw/Fire • RMB Zoom • ESC Menu</span>
+    </div>
+  </div>
+
+  <!-- Mobile / Touch On-Screen Controls -->
+  <div id="touch-controls">
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+    <div id="look-zone"></div>
+    <button id="touch-menu-btn">MENU</button>
+    <button id="touch-zoom-btn">ZOOM</button>
+    <button id="touch-jump-btn">JUMP</button>
+    <div id="touch-fire-btn">
+      <span>DRAW</span>
+      <span style="font-size:0.6rem; opacity:0.85;">DRAG AIM</span>
+    </div>
+  </div>
+
+  <!-- Respawn Screen -->
+  <div id="respawn-overlay">
+    <h2>ELIMINATED</h2>
+    <p id="respawn-reason" style="color:#cbd5e1; margin-bottom: 6px; font-weight:600;"></p>
+    <div id="respawn-timer">Respawning in 3.0s...</div>
+  </div>
+
+  <!-- Lobby / Start / Match End Modal -->
+  <div id="menu-overlay">
+    <div class="menu-card">
+      <div class="game-badge" id="menu-badge">4v4 Serverless WebRTC Archery CTF</div>
+      <h1 id="menu-title">NARROW CASTLE</h1>
+      <p class="menu-subtitle" id="menu-subtitle">
+        Zero-server P2P Capture the Flag with dynamic 4v4 AI backfill. Seize the enemy banner and return it to your citadel pedestal!
+      </p>
+
+      <div class="lobby-section">
+        <div class="lobby-row">
+          <div>
+            <label class="field-label" for="player-name-input">Archer Name</label>
+            <input class="text-input" id="player-name-input" type="text" maxlength="16" placeholder="Ranger" />
+          </div>
+          <div>
+            <label class="field-label">Preferred Team</label>
+            <div class="seg-group" id="team-selector">
+              <div class="seg-btn active" data-team="auto">AUTO</div>
+              <div class="seg-btn" data-team="blue">BLUE</div>
+              <div class="seg-btn red-opt" data-team="red">RED</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label">Archer Class</label>
+          <div class="seg-group two-col" id="class-selector">
+            <div class="seg-btn active" data-class="scout">⚡ SCOUT</div>
+            <div class="seg-btn" data-class="marksman">🎯 MARKSMAN</div>
+          </div>
+          <div class="class-desc" id="class-desc">
+            <strong>Scout:</strong> +22% movement speed &amp; rapid bow draw (0.62s full charge).
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="quick-play-btn">⚡ QUICK PLAY (PUBLIC SERVER)</button>
+
+      <div class="lobby-section" style="margin-bottom: 6px;">
+        <label class="field-label">Create / Join Private Room</label>
+        <div class="private-box">
+          <input class="text-input" id="private-room-input" type="text" maxlength="18" placeholder="Room Code (e.g. CASTLE7)" />
+          <input class="text-input" id="private-pass-input" type="password" maxlength="18" placeholder="Password (Optional)" />
+          <button class="btn-secondary" id="join-private-btn">JOIN / CREATE</button>
+        </div>
+        <div id="lobby-status"></div>
+      </div>
+
+      <div class="lobby-footer">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="touch-mode-checkbox" />
+          <span>Enable On-Screen Touch Controls</span>
+        </label>
+        <span>First to 3 Captures Wins</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://esm.sh/three@0.160.0';
+    import { PointerLockControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
+    import { joinRoom } from 'https://esm.sh/trystero@0.19.0/torrent';
+
+    // =========================================================================
+    // CONSTANTS & CLASS DEFINITIONS
+    // =========================================================================
+    const GRAVITY = -23.0;
+    const ARROW_GRAVITY = -16.5;
+    const WIN_SCORE = 3;
+    const TEAM_TARGET_SIZE = 4; // 4v4 = 8 total combatants
+    const APP_ID = 'narrow-castle-ctf-v1';
+
+    const CLASSES = {
+      scout: {
+        label: 'Scout',
+        moveSpeed: 12.2,
+        drawTime: 0.62,
+        minSpeed: 24,
+        maxSpeed: 64,
+        zoomFov: 64,
+        maxHp: 95,
+        desc: 'Scout: +22% movement speed & rapid bow draw (0.62s full charge).'
+      },
+      marksman: {
+        label: 'Marksman',
+        moveSpeed: 9.8,
+        drawTime: 0.92,
+        minSpeed: 28,
+        maxSpeed: 82,
+        zoomFov: 48,
+        maxHp: 105,
+        desc: 'Marksman: High arrow velocity, flatter trajectory & deep RMB zoom.'
+      }
+    };
+
+    const BOT_NAMES = [
+      'Aldric', 'Rowan', 'Garrick', 'Isolde',
+      'Thorne', 'Bram', 'Lyra', 'Cedric',
+      'Vesper', 'Kael', 'Mira', 'Orin'
+    ];
+
+    // =========================================================================
+    // MODULE 1: PROCEDURAL AUDIO ENGINE (Web Audio API)
+    // =========================================================================
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playDraw() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(115, now);
+        osc.frequency.exponentialRampToValueAtTime(215, now + 0.35);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.39);
+      }
+
+      playShoot(power = 1) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320 + power * 240, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.14);
+        gain.gain.setValueAtTime(0.14 * Math.max(0.4, power), now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      }
+
+      playHitmarker(headshot = false) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = headshot ? 'square' : 'triangle';
+        osc.frequency.setValueAtTime(headshot ? 1180 : 760, now);
+        osc.frequency.exponentialRampToValueAtTime(headshot ? 1680 : 520, now + 0.08);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+
+      playFlagEvent(isScore = false) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = isScore ? [523.25, 659.25, 783.99, 1046.5] : [440, 587.33];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+          gain.gain.setValueAtTime(0.13, now + idx * 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.28);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.09);
+          osc.stop(now + idx * 0.09 + 0.3);
+        });
+      }
+
+      playJump() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(260, now + 0.11);
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.13);
+      }
+    }
+
+    // =========================================================================
+    // MODULE 2: LOW-POLY MEDIEVAL CASTLE ARENA & COLLISION WORLD
+    // =========================================================================
+    class CastleWorld {
+      constructor(scene) {
+        this.scene = scene;
+        this.colliders = []; // Array of AABB { minX, maxX, minY, maxY, minZ, maxZ, isRamp, rampAxis, rampDir }
+        this.staticMeshes = [];
+        this.pedestals = {
+          blue: new THREE.Vector3(0, 0.4, 42),
+          red: new THREE.Vector3(0, 0.4, -42)
+        };
+        this.spawnPoints = {
+          blue: [
+            new THREE.Vector3(-6, 0.5, 45),
+            new THREE.Vector3(6, 0.5, 45),
+            new THREE.Vector3(-12, 0.5, 40),
+            new THREE.Vector3(12, 0.5, 40)
+          ],
+          red: [
+            new THREE.Vector3(-6, 0.5, -45),
+            new THREE.Vector3(6, 0.5, -45),
+            new THREE.Vector3(-12, 0.5, -40),
+            new THREE.Vector3(12, 0.5, -40)
+          ]
+        };
+
+        this.buildEnvironment();
+      }
+
+      addBox(x, y, z, w, h, d, color, castShadow = true, receiveShadow = true) {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mat = new THREE.MeshStandardMaterial({
+          color,
+          flatShading: true,
+          roughness: 0.85,
+          metalness: 0.05
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = castShadow;
+        mesh.receiveShadow = receiveShadow;
+        this.scene.add(mesh);
+        this.staticMeshes.push(mesh);
+
+        this.colliders.push({
+          minX: x - w / 2,
+          maxX: x + w / 2,
+          minY: y - h / 2,
+          maxY: y + h / 2,
+          minZ: z - d / 2,
+          maxZ: z + d / 2
+        });
+        return mesh;
+      }
+
+      addRamp(x, yBottom, z, w, h, d, axis, dir, color = 0x8b5a2b) {
+        // Build visual sloped ramp via wedge geometry + step-friendly collider
+        const shape = new THREE.Shape();
+        if (axis === 'z') {
+          if (dir > 0) {
+            shape.moveTo(-d / 2, 0);
+            shape.lineTo(d / 2, h);
+            shape.lineTo(d / 2, 0);
+          } else {
+            shape.moveTo(-d / 2, h);
+            shape.lineTo(d / 2, 0);
+            shape.lineTo(-d / 2, 0);
+          }
+          shape.closePath();
+          const extrude = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
+          extrude.rotateY(Math.PI / 2);
+          extrude.translate(-w / 2, yBottom, 0);
+          const mat = new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.9 });
+          const mesh = new THREE.Mesh(extrude, mat);
+          mesh.position.set(x, 0, z);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          this.scene.add(mesh);
+          this.staticMeshes.push(mesh);
+        }
+
+        // Subdivide ramp into 8 smooth stair steps for rock-solid walking/AI navigation
+        const steps = 8;
+        for (let i = 0; i < steps; i++) {
+          const t = (i + 1) / steps;
+          const stepH = h * t;
+          const stepD = d / steps;
+          const offset = -d / 2 + stepD * (i + 0.5);
+          const zPos = axis === 'z' ? z + (dir > 0 ? offset : -offset) : z;
+          this.colliders.push({
+            minX: x - w / 2,
+            maxX: x + w / 2,
+            minY: yBottom,
+            maxY: yBottom + stepH,
+            minZ: zPos - stepD / 2,
+            maxZ: zPos + stepD / 2
+          });
+        }
+      }
+
+      buildEnvironment() {
+        // Sky & Atmospheric Fog
+        this.scene.background = new THREE.Color(0x7cc4fa);
+        this.scene.fog = new THREE.FogExp2(0x8ecdf8, 0.0065);
+
+        // Lighting
+        const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x3f6212, 0.85);
+        this.scene.add(hemi);
+
+        const sun = new THREE.DirectionalLight(0xfffbeb, 1.45);
+        sun.position.set(42, 68, 28);
+        sun.castShadow = true;
+        sun.shadow.mapSize.width = 2048;
+        sun.shadow.mapSize.height = 2048;
+        sun.shadow.camera.near = 10;
+        sun.shadow.camera.far = 180;
+        const d = 62;
+        sun.shadow.camera.left = -d;
+        sun.shadow.camera.right = d;
+        sun.shadow.camera.top = d;
+        sun.shadow.camera.bottom = -d;
+        sun.shadow.bias = -0.0005;
+        this.scene.add(sun);
+
+        // Grass Courtyard Floor
+        this.addBox(0, -1, 0, 68, 2, 112, 0x4d7c0f, false, true);
+        // Stone Center Courtyard Paving
+        this.addBox(0, -0.45, 0, 26, 1, 96, 0x94a3b8, false, true);
+
+        // Perimeter Castle Walls
+        const wallColor = 0x64748b;
+        const trimColor = 0x475569;
+        this.addBox(-33, 5, 0, 2, 10, 112, wallColor);
+        this.addBox(33, 5, 0, 2, 10, 112, wallColor);
+        this.addBox(0, 5, 55, 68, 10, 2, wallColor);
+        this.addBox(0, 5, -55, 68, 10, 2, wallColor);
+
+        // Four Corner Watchtowers
+        const towerCoords = [[-31, 53], [31, 53], [-31, -53], [31, -53]];
+        towerCoords.forEach(([tx, tz]) => {
+          this.addBox(tx, 7.5, tz, 7, 15, 7, trimColor);
+          const roofGeo = new THREE.ConeGeometry(5.6, 5.5, 4);
+          const roofMat = new THREE.MeshStandardMaterial({
+            color: tz > 0 ? 0x1d4ed8 : 0xb91c1c,
+            flatShading: true
+          });
+          const roof = new THREE.Mesh(roofGeo, roofMat);
+          roof.position.set(tx, 17.5, tz);
+          roof.rotation.y = Math.PI / 4;
+          roof.castShadow = true;
+          this.scene.add(roof);
+        });
+
+        // Central Stone Overpass Bridge (Elevated sniper lane!)
+        this.addBox(0, 3.6, 0, 24, 0.8, 10, 0x78716c);
+        // Bridge Support Pillars
+        this.addBox(-10, 1.8, -3.5, 2.2, 3.6, 2.2, trimColor);
+        this.addBox(10, 1.8, -3.5, 2.2, 3.6, 2.2, trimColor);
+        this.addBox(-10, 1.8, 3.5, 2.2, 3.6, 2.2, trimColor);
+        this.addBox(10, 1.8, 3.5, 2.2, 3.6, 2.2, trimColor);
+        // Bridge Low Battlement Cover
+        this.addBox(-5.5, 4.6, 4.6, 7, 1.2, 0.7, trimColor);
+        this.addBox(5.5, 4.6, 4.6, 7, 1.2, 0.7, trimColor);
+        this.addBox(-5.5, 4.6, -4.6, 7, 1.2, 0.7, trimColor);
+        this.addBox(5.5, 4.6, -4.6, 7, 1.2, 0.7, trimColor);
+
+        // Side Elevated Walkways & Wooden Ramps leading up to the Central Bridge
+        [-15.5, 15.5].forEach((sx) => {
+          this.addBox(sx, 3.6, 0, 7, 0.8, 16, 0x78716c);
+          this.addRamp(sx, 0, 14, 6.6, 3.6, 12, 'z', -1, 0x92400e);
+          this.addRamp(sx, 0, -14, 6.6, 3.6, 12, 'z', 1, 0x92400e);
+        });
+
+        // Tactical Mid-Field Archery Cover Pillars & Wooden Barricades
+        const coverBlocks = [
+          [-7, 1.3, 18, 3.2, 2.6, 1.4, trimColor],
+          [7, 1.3, 18, 3.2, 2.6, 1.4, trimColor],
+          [-7, 1.3, -18, 3.2, 2.6, 1.4, trimColor],
+          [7, 1.3, -18, 3.2, 2.6, 1.4, trimColor],
+          [0, 1.1, 25, 4.5, 2.2, 1.5, 0x92400e],
+          [0, 1.1, -25, 4.5, 2.2, 1.5, 0x92400e],
+          [-22, 1.4, 28, 4, 2.8, 2, trimColor],
+          [22, 1.4, 28, 4, 2.8, 2, trimColor],
+          [-22, 1.4, -28, 4, 2.8, 2, trimColor],
+          [22, 1.4, -28, 4, 2.8, 2, trimColor]
+        ];
+        coverBlocks.forEach((b) => this.addBox(...b));
+
+        // Symmetrical Blue (+Z) and Red (-Z) Base Platforms & Pedestals
+        this.buildBase('blue', 42, 0x2563eb);
+        this.buildBase('red', -42, 0xdc2626);
+      }
+
+      buildBase(team, zCenter, bannerColor) {
+        // Raised Stone Base Dais
+        this.addBox(0, 0.2, zCenter, 14, 0.4, 12, 0xcbd5e1);
+        // Flag Pedestal Altar
+        this.addBox(0, 0.65, zCenter, 2.6, 0.5, 2.6, bannerColor);
+        // Decorative Archway Pillars behind base
+        const backZ = zCenter + (zCenter > 0 ? 7.5 : -7.5);
+        this.addBox(-6.5, 3.5, backZ, 2.4, 7, 2.4, 0x475569);
+        this.addBox(6.5, 3.5, backZ, 2.4, 7, 2.4, 0x475569);
+        this.addBox(0, 6.8, backZ, 15.5, 1.5, 2.6, bannerColor);
+      }
+    }
+
+    // =========================================================================
+    // MODULE 3: CHARACTER & FLAG MESH BUILDERS
+    // =========================================================================
+    function createArcherMesh(team, name = 'Archer', isBot = false) {
+      const group = new THREE.Group();
+      const primaryColor = team === 'blue' ? 0x2563eb : 0xdc2626;
+      const trimColor = team === 'blue' ? 0x93c5fd : 0xfca5a5;
+
+      // Torso (Tunic)
+      const torso = new THREE.Mesh(
+        new THREE.BoxGeometry(0.72, 0.95, 0.44),
+        new THREE.MeshStandardMaterial({ color: primaryColor, flatShading: true })
+      );
+      torso.position.y = 1.05;
+      torso.castShadow = true;
+      group.add(torso);
+
+      // Head + Medieval Hood
+      const headGroup = new THREE.Group();
+      headGroup.position.y = 1.75;
+      const face = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.42, 0.42),
+        new THREE.MeshStandardMaterial({ color: 0xfde68a, flatShading: true })
+      );
+      const hood = new THREE.Mesh(
+        new THREE.BoxGeometry(0.48, 0.48, 0.48),
+        new THREE.MeshStandardMaterial({ color: primaryColor, flatShading: true })
+      );
+      hood.position.set(0, 0.04, 0.04);
+      headGroup.add(face, hood);
+      group.add(headGroup);
+
+      // Legs
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, flatShading: true });
+      const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.62, 0.28), legMat);
+      leftLeg.position.set(-0.2, 0.31, 0);
+      const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.62, 0.28), legMat);
+      rightLeg.position.set(0.2, 0.31, 0);
+      group.add(leftLeg, rightLeg);
+
+      // Bow Prop held in front
+      const bow = new THREE.Mesh(
+        new THREE.TorusGeometry(0.42, 0.035, 5, 10, Math.PI * 1.15),
+        new THREE.MeshStandardMaterial({ color: 0x92400e, flatShading: true })
+      );
+      bow.position.set(0.36, 1.25, -0.42);
+      bow.rotation.y = Math.PI / 2;
+      bow.rotation.z = -Math.PI * 0.57;
+      group.add(bow);
+
+      // Floating Nameplate Sprite
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+      ctx.beginPath();
+      ctx.roundRect(16, 10, 224, 42, 14);
+      ctx.fill();
+      ctx.font = 'bold 24px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = team === 'blue' ? '#7dd3fc' : '#fda4af';
+      ctx.fillText(isBot ? `[BOT] ${name}` : name, 128, 39);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      sprite.position.set(0, 2.35, 0);
+      sprite.scale.set(2.1, 0.52, 1);
+      group.add(sprite);
+
+      return { group, leftLeg, rightLeg, headGroup, bow };
+    }
+
+    function createFlagMesh(team) {
+      const group = new THREE.Group();
+      const color = team === 'blue' ? 0x38bdf8 : 0xf43f5e;
+
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 2.8, 6),
+        new THREE.MeshStandardMaterial({ color: 0xfef08a, flatShading: true })
+      );
+      pole.position.y = 1.4;
+      pole.castShadow = true;
+      group.add(pole);
+
+      const clothGeo = new THREE.BoxGeometry(1.15, 0.75, 0.06);
+      const clothMat = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.25,
+        flatShading: true
+      });
+      const cloth = new THREE.Mesh(clothGeo, clothMat);
+      cloth.position.set(0.6, 2.35, 0);
+      cloth.castShadow = true;
+      group.add(cloth);
+
+      return { group, cloth };
+    }
+
+    // =========================================================================
+    // MODULE 4: SERVERLESS WEBRTC NETWORK MANAGER (network.js via Trystero)
+    // =========================================================================
+    class NetworkManager {
+      constructor(callbacks) {
+        this.callbacks = callbacks;
+        this.room = null;
+        this.channel = null; // BroadcastChannel fallback when wss:// is blocked by iframe CSP
+        this.offlineFallback = false;
+        this.roomId = '';
+        this.myId = 'local-' + Math.random().toString(36).slice(2, 9);
+        this.peers = new Map(); // peerId -> { joinedAt, name, team, cls, pos, yaw, pitch, charge, hp, alive }
+        this.joinedAt = Date.now();
+        this.isHost = true;
+        this.sendStateAction = null;
+        this.sendWorldAction = null;
+        this.sendEventAction = null;
+      }
+
+      async connectToRoom(roomId, password = '') {
+        if (this.room) {
+          try { this.room.leave(); } catch (e) {}
+          this.room = null;
+        }
+        if (this.channel) {
+          try { this.channel.close(); } catch (e) {}
+          this.channel = null;
+        }
+        this.peers.clear();
+        this.roomId = roomId;
+        this.joinedAt = Date.now();
+        this.isHost = true;
+        this.offlineFallback = false;
+
+        const config = { appId: APP_ID };
+        if (password && password.trim().length > 0) {
+          config.password = password.trim();
+        }
+
+        // Safely attempt WebRTC/WebSocket matchmaking; fall back gracefully if sandbox blocks wss://
+        try {
+          this.room = joinRoom(config, roomId);
+        } catch (err) {
+          console.warn('WebRTC tracker blocked by environment sandbox; switching to local P2P/Bot mode.', err);
+          this.activateLocalFallback(roomId);
+          return;
+        }
+
+        const [sendState, getState] = this.room.makeAction('pState');
+        const [sendWorld, getWorld] = this.room.makeAction('wSync');
+        const [sendEvent, getEvent] = this.room.makeAction('gEvt');
+
+        this.sendStateAction = sendState;
+        this.sendWorldAction = sendWorld;
+        this.sendEventAction = sendEvent;
+
+        this.room.onPeerJoin((peerId) => {
+          this.peers.set(peerId, {
+            id: peerId,
+            joinedAt: Date.now() + 1000,
+            name: 'Archer',
+            team: 'blue',
+            cls: 'scout',
+            pos: { x: 0, y: 0.5, z: 42 },
+            yaw: 0,
+            pitch: 0,
+            charge: 0,
+            hp: 100,
+            alive: true
+          });
+          this.reelectHost();
+          if (this.callbacks.onPeerChange) this.callbacks.onPeerChange(peerId, true);
+        });
+
+        this.room.onPeerLeave((peerId) => {
+          this.peers.delete(peerId);
+          this.reelectHost();
+          if (this.callbacks.onPeerChange) this.callbacks.onPeerChange(peerId, false);
+        });
+
+        getState((data, peerId) => {
+          const existing = this.peers.get(peerId) || { id: peerId };
+          this.peers.set(peerId, { ...existing, ...data, id: peerId });
+          this.reelectHost();
+          if (this.callbacks.onRemotePlayerState) {
+            this.callbacks.onRemotePlayerState(peerId, this.peers.get(peerId));
+          }
+        });
+
+        getWorld((data, peerId) => {
+          if (!this.isHost && this.callbacks.onAuthoritativeWorldSync) {
+            this.callbacks.onAuthoritativeWorldSync(data, peerId);
+          }
+        });
+
+        getEvent((data, peerId) => {
+          if (this.callbacks.onGameEvent) {
+            this.callbacks.onGameEvent(data, peerId);
+          }
+        });
+      }
+
+      activateLocalFallback(roomId) {
+        if (this.offlineFallback) return;
+        this.offlineFallback = true;
+        if (this.room) {
+          try { this.room.leave(); } catch (e) {}
+          this.room = null;
+        }
+        this.isHost = true;
+
+        // Use BroadcastChannel so multiple tabs in the same browser can still play together!
+        if ('BroadcastChannel' in window) {
+          this.channel = new BroadcastChannel(`${APP_ID}-${roomId}`);
+          this.channel.onmessage = (ev) => {
+            const msg = ev.data;
+            if (!msg || msg.senderId === this.myId) return;
+            if (msg.kind === 'pState') {
+              const isNew = !this.peers.has(msg.senderId);
+              const existing = this.peers.get(msg.senderId) || { id: msg.senderId };
+              this.peers.set(msg.senderId, { ...existing, ...msg.payload, id: msg.senderId });
+              this.reelectHost();
+              if (isNew && this.callbacks.onPeerChange) {
+                this.callbacks.onPeerChange(msg.senderId, true);
+              }
+              if (this.callbacks.onRemotePlayerState) {
+                this.callbacks.onRemotePlayerState(msg.senderId, this.peers.get(msg.senderId));
+              }
+            } else if (msg.kind === 'wSync') {
+              if (!this.isHost && this.callbacks.onAuthoritativeWorldSync) {
+                this.callbacks.onAuthoritativeWorldSync(msg.payload, msg.senderId);
+              }
+            } else if (msg.kind === 'gEvt') {
+              if (this.callbacks.onGameEvent) {
+                this.callbacks.onGameEvent(msg.payload, msg.senderId);
+              }
+            } else if (msg.kind === 'leave') {
+              this.peers.delete(msg.senderId);
+              this.reelectHost();
+              if (this.callbacks.onPeerChange) this.callbacks.onPeerChange(msg.senderId, false);
+            }
+          };
+
+          this.sendStateAction = (data) => this.channel?.postMessage({ kind: 'pState', senderId: this.myId, payload: data });
+          this.sendWorldAction = (data) => this.channel?.postMessage({ kind: 'wSync', senderId: this.myId, payload: data });
+          this.sendEventAction = (data) => this.channel?.postMessage({ kind: 'gEvt', senderId: this.myId, payload: data });
+        } else {
+          this.sendStateAction = () => {};
+          this.sendWorldAction = () => {};
+          this.sendEventAction = () => {};
+        }
+
+        if (this.callbacks.onFallbackActivated) {
+          this.callbacks.onFallbackActivated();
+        }
+      }
+
+      reelectHost() {
+        // Earliest joinedAt timestamp (tie-broken lexicographically by ID) wins Host authority
+        let bestId = this.myId;
+        let bestTime = this.joinedAt;
+
+        for (const [peerId, info] of this.peers.entries()) {
+          const t = info.joinedAt || Number.MAX_SAFE_INTEGER;
+          if (t < bestTime || (t === bestTime && peerId < bestId)) {
+            bestTime = t;
+            bestId = peerId;
+          }
+        }
+
+        const wasHost = this.isHost;
+        this.isHost = (bestId === this.myId);
+        if (wasHost !== this.isHost && this.callbacks.onHostRoleChanged) {
+          this.callbacks.onHostRoleChanged(this.isHost);
+        }
+      }
+
+      broadcastPlayerState(state) {
+        if (this.sendStateAction) {
+          this.sendStateAction({ ...state, joinedAt: this.joinedAt });
+        }
+      }
+
+      broadcastWorldSync(worldSnapshot) {
+        if (this.isHost && this.sendWorldAction) {
+          this.sendWorldAction(worldSnapshot);
+        }
+      }
+
+      broadcastEvent(evt) {
+        if (this.sendEventAction) {
+          this.sendEventAction(evt);
+        }
+      }
+    }
+
+    // =========================================================================
+    // MODULE 5: UNIFIED DESKTOP & MOBILE CONTROL MANAGER (controls.js)
+    // =========================================================================
+    class ControlManager {
+      constructor(camera, audio, onFireCallback, onJumpCallback) {
+        this.camera = camera;
+        this.audio = audio;
+        this.onFire = onFireCallback;
+        this.onJump = onJumpCallback;
+
+        this.keys = {};
+        this.yaw = 0;
+        this.pitch = 0;
+        this.isDrawing = false;
+        this.charge = 0;
+        this.isZooming = false;
+        this.fallbackLookActive = false;
+
+        // Touch state
+        this.touchMode = false;
+        this.moveVec = { x: 0, y: 0 }; // x = strafe (-1..1), y = forward (-1..1)
+        this.joyTouchId = null;
+        this.joyOrigin = { x: 0, y: 0 };
+        this.lookTouchId = null;
+        this.lastLookPos = { x: 0, y: 0 };
+        this.fireTouchId = null;
+        this.lastFirePos = { x: 0, y: 0 };
+
+        this.controls = new PointerLockControls(this.camera, document.body);
+        this.detectMobileDefault();
+        this.bindDesktopEvents();
+        this.bindTouchEvents();
+      }
+
+      detectMobileDefault() {
+        const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth < 768;
+        this.setTouchMode(isMobile);
+      }
+
+      setTouchMode(enabled) {
+        this.touchMode = enabled;
+        document.body.classList.toggle('touch-mode', enabled);
+        const cb = document.getElementById('touch-mode-checkbox');
+        if (cb) cb.checked = enabled;
+      }
+
+      get isEngaged() {
+        return this.controls.isLocked || this.fallbackLookActive || this.touchMode;
+      }
+
+      engage(onEngaged) {
+        if (this.touchMode) {
+          this.fallbackLookActive = true;
+          if (onEngaged) onEngaged();
+          return;
+        }
+        try {
+          const p = this.controls.lock();
+          if (p && typeof p.catch === 'function') {
+            p.catch(() => {
+              this.fallbackLookActive = true;
+              if (onEngaged) onEngaged();
+            });
+          }
+        } catch (e) {
+          this.fallbackLookActive = true;
+          if (onEngaged) onEngaged();
+        }
+      }
+
+      disengage() {
+        this.fallbackLookActive = false;
+        this.isDrawing = false;
+        this.charge = 0;
+        this.isZooming = false;
+        this.moveVec = { x: 0, y: 0 };
+        if (document.pointerLockElement) {
+          this.controls.unlock();
+        }
+      }
+
+      applyLookDelta(dx, dy, sensitivity = 0.0022) {
+        this.yaw -= dx * sensitivity;
+        this.pitch = THREE.MathUtils.clamp(
+          this.pitch - dy * sensitivity,
+          -Math.PI / 2 + 0.06,
+          Math.PI / 2 - 0.06
+        );
+        this.camera.rotation.order = 'YXZ';
+        this.camera.rotation.y = this.yaw;
+        this.camera.rotation.x = this.pitch;
+      }
+
+      bindDesktopEvents() {
+        window.addEventListener('keydown', (e) => {
+          if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+          this.keys[e.code] = true;
+          if (e.code === 'Space' && this.isEngaged) {
+            this.onJump();
+          }
+          if (e.code === 'Escape' && this.fallbackLookActive && !this.touchMode) {
+            this.disengage();
+            this.controls.dispatchEvent({ type: 'unlock' });
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.code] = false;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (this.controls.isLocked) {
+            const euler = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
+            this.yaw = euler.y;
+            this.pitch = euler.x;
+          } else if (this.fallbackLookActive && !this.touchMode) {
+            this.applyLookDelta(e.movementX, e.movementY, 0.0022);
+          }
+        });
+
+        window.addEventListener('mousedown', (e) => {
+          if (this.touchMode || !this.isEngaged) return;
+          if (e.target.closest('button') || e.target.closest('.net-pill')) return;
+          if (e.button === 0) {
+            this.isDrawing = true;
+            this.charge = 0.05;
+            this.audio.playDraw();
+          } else if (e.button === 2) {
+            this.isZooming = true;
+          }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+          if (e.button === 0 && this.isDrawing) {
+            const p = this.charge;
+            this.isDrawing = false;
+            this.charge = 0;
+            this.onFire(p);
+          } else if (e.button === 2) {
+            this.isZooming = false;
+          }
+        });
+
+        window.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+
+      bindTouchEvents() {
+        const joyZone = document.getElementById('joystick-zone');
+        const joyBase = document.getElementById('joystick-base');
+        const joyKnob = document.getElementById('joystick-knob');
+        const lookZone = document.getElementById('look-zone');
+        const fireBtn = document.getElementById('touch-fire-btn');
+        const jumpBtn = document.getElementById('touch-jump-btn');
+        const zoomBtn = document.getElementById('touch-zoom-btn');
+
+        // Left Thumb Floating Virtual Joystick
+        joyZone.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (this.joyTouchId !== null) return;
+          const t = e.changedTouches[0];
+          this.joyTouchId = t.identifier;
+          this.joyOrigin = { x: t.clientX, y: t.clientY };
+          joyBase.style.left = `${t.clientX}px`;
+          joyBase.style.top = `${t.clientY}px`;
+          joyBase.style.display = 'block';
+          joyKnob.style.transform = 'translate(-50%, -50%)';
+        }, { passive: false });
+
+        joyZone.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.joyTouchId) {
+              const maxR = 44;
+              const dx = t.clientX - this.joyOrigin.x;
+              const dy = t.clientY - this.joyOrigin.y;
+              const dist = Math.hypot(dx, dy);
+              const clamped = Math.min(dist, maxR);
+              const angle = Math.atan2(dy, dx);
+              const kx = Math.cos(angle) * clamped;
+              const ky = Math.sin(angle) * clamped;
+              joyKnob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+              this.moveVec.x = kx / maxR;
+              this.moveVec.y = -ky / maxR; // Up on screen = forward (+1)
+            }
+          }
+        }, { passive: false });
+
+        const endJoy = (e) => {
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.joyTouchId) {
+              this.joyTouchId = null;
+              this.moveVec = { x: 0, y: 0 };
+              joyBase.style.display = 'none';
+            }
+          }
+        };
+        joyZone.addEventListener('touchend', endJoy);
+        joyZone.addEventListener('touchcancel', endJoy);
+
+        // Right Half Camera Look Drag
+        lookZone.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (this.lookTouchId !== null) return;
+          const t = e.changedTouches[0];
+          this.lookTouchId = t.identifier;
+          this.lastLookPos = { x: t.clientX, y: t.clientY };
+        }, { passive: false });
+
+        lookZone.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.lookTouchId) {
+              const dx = t.clientX - this.lastLookPos.x;
+              const dy = t.clientY - this.lastLookPos.y;
+              this.lastLookPos = { x: t.clientX, y: t.clientY };
+              this.applyLookDelta(dx, dy, 0.0042);
+            }
+          }
+        }, { passive: false });
+
+        const endLook = (e) => {
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.lookTouchId) {
+              this.lookTouchId = null;
+            }
+          }
+        };
+        lookZone.addEventListener('touchend', endLook);
+        lookZone.addEventListener('touchcancel', endLook);
+
+        // Dedicated Right-Thumb Draw/Fire Button (Hold + Drag to fine-tune aim, Release to fire)
+        fireBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const t = e.changedTouches[0];
+          this.fireTouchId = t.identifier;
+          this.lastFirePos = { x: t.clientX, y: t.clientY };
+          this.isDrawing = true;
+          this.charge = 0.06;
+          fireBtn.classList.add('active');
+          this.audio.playDraw();
+        }, { passive: false });
+
+        fireBtn.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.fireTouchId) {
+              const dx = t.clientX - this.lastFirePos.x;
+              const dy = t.clientY - this.lastFirePos.y;
+              this.lastFirePos = { x: t.clientX, y: t.clientY };
+              this.applyLookDelta(dx, dy, 0.0036);
+            }
+          }
+        }, { passive: false });
+
+        const releaseFireTouch = (e) => {
+          for (const t of e.changedTouches) {
+            if (t.identifier === this.fireTouchId) {
+              this.fireTouchId = null;
+              fireBtn.classList.remove('active');
+              if (this.isDrawing) {
+                const p = this.charge;
+                this.isDrawing = false;
+                this.charge = 0;
+                this.onFire(p);
+              }
+            }
+          }
+        };
+        fireBtn.addEventListener('touchend', releaseFireTouch);
+        fireBtn.addEventListener('touchcancel', releaseFireTouch);
+
+        // Jump & Zoom Touch Buttons
+        jumpBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.onJump();
+        }, { passive: false });
+
+        zoomBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.isZooming = !this.isZooming;
+          zoomBtn.classList.toggle('active', this.isZooming);
+        }, { passive: false });
+      }
+
+      getMovementInput() {
+        if (this.touchMode) {
+          return { strafe: this.moveVec.x, forward: this.moveVec.y };
+        }
+        let forward = 0;
+        let strafe = 0;
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) forward += 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) forward -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) strafe += 1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) strafe -= 1;
+        const len = Math.hypot(forward, strafe);
+        if (len > 1) {
+          forward /= len;
+          strafe /= len;
+        }
+        return { strafe, forward };
+      }
+    }
+
+    // =========================================================================
+    // MODULE 6: HOST-AUTHORITATIVE DYNAMIC 4v4 AI BOT CONTROLLER (ai.js)
+    // =========================================================================
+    class BotAIController {
+      constructor(game) {
+        this.game = game;
+        this.bots = new Map(); // botId -> bot entity
+        this.botCounter = 0;
+      }
+
+      reconcileTeamBalance(humanRoster) {
+        // Only the Room Host spawns/despawns bots to keep both teams at 4v4
+        if (!this.game.network.isHost) return;
+
+        for (const team of ['blue', 'red']) {
+          const humansOnTeam = humanRoster.filter((p) => p.team === team).length;
+          const desiredBots = Math.max(0, TEAM_TARGET_SIZE - humansOnTeam);
+          const currentTeamBots = Array.from(this.bots.values()).filter((b) => b.team === team);
+
+          if (currentTeamBots.length < desiredBots) {
+            const toAdd = desiredBots - currentTeamBots.length;
+            for (let i = 0; i < toAdd; i++) {
+              this.spawnBot(team);
+            }
+          } else if (currentTeamBots.length > desiredBots) {
+            const toRemove = currentTeamBots.length - desiredBots;
+            for (let i = 0; i < toRemove; i++) {
+              const victim = currentTeamBots[i];
+              this.removeBot(victim.id);
+            }
+          }
+        }
+      }
+
+      spawnBot(team) {
+        const idx = this.botCounter++;
+        const id = `bot-${team}-${idx}-${Math.random().toString(36).slice(2, 5)}`;
+        const name = BOT_NAMES[idx % BOT_NAMES.length];
+        const spawns = this.game.world.spawnPoints[team];
+        const sp = spawns[idx % spawns.length];
+
+        const visual = createArcherMesh(team, name, true);
+        visual.group.position.copy(sp);
+        this.game.scene.add(visual.group);
+
+        const bot = {
+          id,
+          name,
+          team,
+          isBot: true,
+          cls: idx % 2 === 0 ? 'scout' : 'marksman',
+          pos: sp.clone(),
+          vel: new THREE.Vector3(),
+          yaw: team === 'blue' ? 0 : Math.PI,
+          hp: 100,
+          maxHp: 100,
+          alive: true,
+          respawnTimer: 0,
+          shootCooldown: 1.2 + Math.random() * 1.4,
+          strafeDir: Math.random() > 0.5 ? 1 : -1,
+          strafeTimer: 1.5 + Math.random() * 2,
+          laneX: (Math.random() - 0.5) * 26,
+          visual
+        };
+        this.bots.set(id, bot);
+      }
+
+      removeBot(botId) {
+        const bot = this.bots.get(botId);
+        if (!bot) return;
+        // Drop flag if bot was carrying one
+        this.game.dropFlagIfCarriedBy(botId);
+        this.game.scene.remove(bot.visual.group);
+        this.bots.delete(botId);
+      }
+
+      syncFromHostSnapshot(botSnapshots) {
+        // Non-host clients mirror authoritative bot positions & states
+        const activeIds = new Set();
+        for (const snap of botSnapshots) {
+          activeIds.add(snap.id);
+          let bot = this.bots.get(snap.id);
+          if (!bot) {
+            const visual = createArcherMesh(snap.team, snap.name, true);
+            this.game.scene.add(visual.group);
+            bot = {
+              id: snap.id,
+              name: snap.name,
+              team: snap.team,
+              isBot: true,
+              pos: new THREE.Vector3(snap.x, snap.y, snap.z),
+              yaw: snap.yaw,
+              hp: snap.hp,
+              maxHp: 100,
+              alive: snap.alive,
+              visual
+            };
+            this.bots.set(snap.id, bot);
+          }
+          bot.pos.set(snap.x, snap.y, snap.z);
+          bot.yaw = snap.yaw;
+          bot.hp = snap.hp;
+          bot.alive = snap.alive;
+          bot.visual.group.visible = snap.alive;
+          bot.visual.group.position.copy(bot.pos);
+          bot.visual.group.rotation.y = bot.yaw;
+        }
+
+        for (const [id, bot] of this.bots.entries()) {
+          if (!activeIds.has(id)) {
+            this.game.scene.remove(bot.visual.group);
+            this.bots.delete(id);
+          }
+        }
+      }
+
+      update(dt, allCombatants) {
+        if (!this.game.network.isHost) return;
+
+        for (const bot of this.bots.values()) {
+          if (!bot.alive) {
+            bot.respawnTimer -= dt;
+            if (bot.respawnTimer <= 0) {
+              const sp = this.game.world.spawnPoints[bot.team][Math.floor(Math.random() * 4)];
+              bot.pos.copy(sp);
+              bot.vel.set(0, 0, 0);
+              bot.hp = bot.maxHp;
+              bot.alive = true;
+              bot.visual.group.visible = true;
+            }
+            continue;
+          }
+
+          // Determine Tactical CTF Objective
+          const myFlag = this.game.flags[bot.team];
+          const enemyTeam = bot.team === 'blue' ? 'red' : 'blue';
+          const enemyFlag = this.game.flags[enemyTeam];
+          const targetPos = new THREE.Vector3();
+
+          if (enemyFlag.carrierId === bot.id) {
+            // Carrying enemy flag -> Sprint back to own base pedestal!
+            targetPos.copy(this.game.world.pedestals[bot.team]);
+          } else if (myFlag.state === 'dropped') {
+            // Recover own dropped flag
+            targetPos.copy(myFlag.pos);
+          } else if (enemyFlag.state !== 'carried') {
+            // Push for enemy flag
+            targetPos.copy(enemyFlag.pos);
+          } else {
+            // Escort friendly flag carrier
+            const carrier = allCombatants.find((c) => c.id === enemyFlag.carrierId);
+            if (carrier) {
+              targetPos.copy(carrier.pos).add(new THREE.Vector3(bot.strafeDir * 3.5, 0, 0));
+            } else {
+              targetPos.copy(this.game.world.pedestals[enemyTeam]);
+            }
+          }
+
+          // Find closest visible enemy for combat engagement
+          let nearestEnemy = null;
+          let nearestDist = 42;
+          for (const other of allCombatants) {
+            if (!other.alive || other.team === bot.team) continue;
+            const d = bot.pos.distanceTo(other.pos);
+            if (d < nearestDist && this.game.hasLineOfSight(bot.pos, other.pos)) {
+              nearestDist = d;
+              nearestEnemy = other;
+            }
+          }
+
+          // Steering & Strafe Logic
+          bot.strafeTimer -= dt;
+          if (bot.strafeTimer <= 0) {
+            bot.strafeDir *= -1;
+            bot.strafeTimer = 1.4 + Math.random() * 1.8;
+          }
+
+          const toGoal = new THREE.Vector3().subVectors(targetPos, bot.pos);
+          toGoal.y = 0;
+          if (toGoal.lengthSq() > 0.2) toGoal.normalize();
+
+          const rightVec = new THREE.Vector3(-toGoal.z, 0, toGoal.x);
+          const moveDir = toGoal.clone();
+          if (nearestEnemy && nearestDist < 26) {
+            moveDir.addScaledVector(rightVec, bot.strafeDir * 0.72).normalize();
+          }
+
+          const speed = bot.cls === 'scout' ? 8.8 : 7.4;
+          bot.vel.x = moveDir.x * speed;
+          bot.vel.z = moveDir.z * speed;
+          bot.vel.y += GRAVITY * dt;
+
+          // Step & Obstacle Resolution
+          const prevPos = bot.pos.clone();
+          this.game.moveEntityWithCollisions(bot.pos, bot.vel, 0.45, 1.85, dt, true);
+
+          // Auto-jump if blocked horizontally while pursuing goal
+          if (prevPos.distanceTo(bot.pos) < speed * dt * 0.25 && Math.abs(bot.vel.y) < 0.2) {
+            bot.vel.y = 8.4;
+          }
+
+          // Aiming & Ballistic Arrow Firing
+          if (nearestEnemy) {
+            const aimVec = new THREE.Vector3().subVectors(nearestEnemy.pos, bot.pos);
+            bot.yaw = Math.atan2(-aimVec.x, -aimVec.z);
+
+            bot.shootCooldown -= dt;
+            if (bot.shootCooldown <= 0) {
+              bot.shootCooldown = 1.65 + Math.random() * 1.25;
+              this.fireBotArrow(bot, nearestEnemy);
+            }
+          } else if (moveDir.lengthSq() > 0.01) {
+            bot.yaw = Math.atan2(-moveDir.x, -moveDir.z);
+          }
+
+          // Animate Visual Mesh
+          bot.visual.group.position.copy(bot.pos);
+          bot.visual.group.rotation.y = bot.yaw;
+          const walkCycle = performance.now() * 0.01;
+          bot.visual.leftLeg.rotation.x = Math.sin(walkCycle) * 0.55;
+          bot.visual.rightLeg.rotation.x = -Math.sin(walkCycle) * 0.55;
+        }
+      }
+
+      fireBotArrow(bot, target) {
+        const origin = bot.pos.clone().add(new THREE.Vector3(0, 1.5, 0));
+        const targetHead = target.pos.clone().add(new THREE.Vector3(0, 1.35, 0));
+        const dist = origin.distanceTo(targetHead);
+        const arrowSpeed = 54;
+        const flightTime = dist / arrowSpeed;
+
+        // Predict target velocity + compensate for arrow gravity arc
+        const predicted = targetHead.clone();
+        if (target.vel) {
+          predicted.addScaledVector(target.vel, flightTime * 0.65);
+        }
+        predicted.y += 0.5 * Math.abs(ARROW_GRAVITY) * flightTime * flightTime;
+
+        // Slight human-like angular inaccuracy
+        predicted.x += (Math.random() - 0.5) * 1.5;
+        predicted.y += (Math.random() - 0.5) * 1.1;
+        predicted.z += (Math.random() - 0.5) * 1.5;
+
+        const dir = predicted.sub(origin).normalize();
+        const velocity = dir.multiplyScalar(arrowSpeed);
+
+        this.game.spawnArrow(origin, velocity, bot.id, bot.team, bot.name, true);
+      }
+    }
+
+    // =========================================================================
+    // MODULE 7: MAIN GAME ENGINE & CTF LOOP (main.js)
+    // =========================================================================
+    class GameManager {
+      constructor() {
+        this.canvas = document.getElementById('game-canvas');
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 260);
+        this.scene.add(this.camera);
+
+        this.audio = new AudioEngine();
+        this.world = new CastleWorld(this.scene);
+
+        // Local Player Profile & State
+        this.localName = 'Ranger_' + Math.floor(100 + Math.random() * 899);
+        this.selectedTeamPref = 'auto';
+        this.localTeam = 'blue';
+        this.localClass = 'scout';
+        this.playerPos = new THREE.Vector3(0, 0.5, 44);
+        this.playerVel = new THREE.Vector3();
+        this.playerGrounded = false;
+        this.playerHp = 100;
+        this.playerMaxHp = 100;
+        this.playerAlive = true;
+        this.playerRespawnTimer = 0;
+
+        // Match & Flag State
+        this.scores = { blue: 0, red: 0 };
+        this.matchOver = false;
+        this.flags = {
+          blue: {
+            team: 'blue',
+            state: 'base', // 'base' | 'carried' | 'dropped'
+            pos: this.world.pedestals.blue.clone(),
+            carrierId: null,
+            dropTimer: 0,
+            visual: createFlagMesh('blue')
+          },
+          red: {
+            team: 'red',
+            state: 'base',
+            pos: this.world.pedestals.red.clone(),
+            carrierId: null,
+            dropTimer: 0,
+            visual: createFlagMesh('red')
+          }
+        };
+        this.scene.add(this.flags.blue.visual.group);
+        this.scene.add(this.flags.red.visual.group);
+
+        // Remote Players & Projectiles
+        this.remoteVisuals = new Map(); // peerId -> { group, leftLeg, rightLeg }
+        this.arrows = [];
+        this.syncTimer = 0;
+
+        // Subsystems
+        this.controls = new ControlManager(
+          this.camera,
+          this.audio,
+          (power) => this.handleLocalFire(power),
+          () => this.handleLocalJump()
+        );
+
+        this.network = new NetworkManager({
+          onPeerChange: (peerId, joined) => this.handlePeerChange(peerId, joined),
+          onRemotePlayerState: (peerId, state) => this.handleRemotePlayerUpdate(peerId, state),
+          onAuthoritativeWorldSync: (snap) => this.applyHostWorldSync(snap),
+          onGameEvent: (evt, fromPeer) => this.handleNetworkEvent(evt, fromPeer),
+          onHostRoleChanged: (isHost) => this.updateRoleBadge(isHost),
+          onFallbackActivated: () => {
+            document.getElementById('net-dot').style.background = '#facc15';
+            document.getElementById('net-dot').style.boxShadow = '0 0 8px #facc15';
+            this.updateRoleBadge(true);
+            this.showToast('Sandbox restricted external WebSockets — running Local/4v4 Bot Arena!');
+          }
+        });
+
+        // Catch asynchronous WebSocket SecurityErrors emitted internally by Trystero trackers
+        window.addEventListener('unhandledrejection', (event) => {
+          const reason = event.reason;
+          const msg = String(reason?.message || reason || '');
+          if (
+            reason?.name === 'SecurityError' ||
+            msg.includes('WebSocket') ||
+            msg.includes('tracker.') ||
+            msg.includes('not allowed in Canvas')
+          ) {
+            event.preventDefault();
+            if (this.network && !this.network.offlineFallback) {
+              this.network.activateLocalFallback(this.network.roomId || 'public-arena-1');
+            }
+          }
+        });
+
+        this.ai = new BotAIController(this);
+
+        this.buildFirstPersonBow();
+        this.bindLobbyAndUI();
+        this.checkUrlHashRoom();
+
+        window.addEventListener('resize', () => this.onResize());
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+      }
+
+      buildFirstPersonBow() {
+        this.bowGroup = new THREE.Group();
+        this.bowGroup.position.set(0.32, -0.26, -0.52);
+        this.bowGroup.rotation.z = -0.18;
+
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x92400e, flatShading: true });
+        const gripMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, flatShading: true });
+
+        // Curved Bow Stave
+        this.bowLimb = new THREE.Mesh(
+          new THREE.TorusGeometry(0.38, 0.022, 5, 12, Math.PI * 1.1),
+          woodMat
+        );
+        this.bowLimb.rotation.y = Math.PI / 2;
+        this.bowLimb.rotation.z = -Math.PI * 0.55;
+        this.bowGroup.add(this.bowLimb);
+
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.05), gripMat);
+        this.bowGroup.add(grip);
+
+        // Nocked Arrow Preview
+        this.nockedArrow = new THREE.Group();
+        const shaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.01, 0.01, 0.72, 5),
+          new THREE.MeshStandardMaterial({ color: 0xd97706, flatShading: true })
+        );
+        shaft.rotation.x = Math.PI / 2;
+        const tip = new THREE.Mesh(
+          new THREE.ConeGeometry(0.024, 0.09, 4),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, flatShading: true })
+        );
+        tip.rotation.x = -Math.PI / 2;
+        tip.position.z = -0.38;
+        this.nockedArrow.add(shaft, tip);
+        this.nockedArrow.position.set(-0.04, 0.02, -0.18);
+        this.bowGroup.add(this.nockedArrow);
+
+        this.camera.add(this.bowGroup);
+      }
+
+      showToast(msg) {
+        const el = document.getElementById('toast-msg');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = setTimeout(() => el.classList.remove('show'), 2600);
+      }
+
+      addKillFeed(text, borderColor = '#38bdf8') {
+        const feed = document.getElementById('killfeed');
+        const item = document.createElement('div');
+        item.className = 'kill-item';
+        item.style.borderLeftColor = borderColor;
+        item.textContent = text;
+        feed.prepend(item);
+        while (feed.children.length > 5) {
+          feed.removeChild(feed.lastChild);
+        }
+        setTimeout(() => {
+          if (item.parentNode) item.remove();
+        }, 5500);
+      }
+
+      checkUrlHashRoom() {
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#room=')) {
+          const code = decodeURIComponent(hash.replace('#room=', '').trim());
+          if (code) {
+            document.getElementById('private-room-input').value = code;
+            document.getElementById('lobby-status').textContent = `Invite link detected for room "${code}" — click JOIN / CREATE!`;
+          }
+        }
+      }
+
+      bindLobbyAndUI() {
+        const nameInput = document.getElementById('player-name-input');
+        nameInput.value = this.localName;
+
+        // Team Selector
+        document.querySelectorAll('#team-selector .seg-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('#team-selector .seg-btn').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.selectedTeamPref = btn.dataset.team;
+          });
+        });
+
+        // Class Selector
+        document.querySelectorAll('#class-selector .seg-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('#class-selector .seg-btn').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.localClass = btn.dataset.class;
+            document.getElementById('class-desc').innerHTML = `<strong>${CLASSES[this.localClass].label}:</strong> ${CLASSES[this.localClass].desc.split(': ')[1]}`;
+          });
+        });
+
+        // Touch Mode Toggle in Lobby & HUD
+        const touchCheckbox = document.getElementById('touch-mode-checkbox');
+        touchCheckbox.addEventListener('change', () => {
+          this.controls.setTouchMode(touchCheckbox.checked);
+        });
+
+        document.getElementById('toggle-touch-hud-btn').addEventListener('click', () => {
+          this.controls.setTouchMode(!this.controls.touchMode);
+          this.showToast(this.controls.touchMode ? 'Touch Controls Enabled' : 'Desktop Controls Enabled');
+        });
+
+        document.getElementById('touch-menu-btn').addEventListener('click', () => {
+          this.controls.disengage();
+          document.getElementById('menu-overlay').style.display = 'flex';
+        });
+
+        // Copy Invite Link
+        document.getElementById('copy-invite-btn').addEventListener('click', () => {
+          const shareUrl = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(this.network.roomId || 'public-arena-1')}`;
+          const temp = document.createElement('textarea');
+          temp.value = shareUrl;
+          document.body.appendChild(temp);
+          temp.select();
+          document.execCommand('copy');
+          document.body.removeChild(temp);
+          this.showToast('Room Invite URL Copied!');
+        });
+
+        // Quick Play (Public Matchmaking)
+        document.getElementById('quick-play-btn').addEventListener('click', async () => {
+          this.audio.init();
+          this.localName = (nameInput.value.trim() || 'Ranger').slice(0, 16);
+          const statusEl = document.getElementById('lobby-status');
+          statusEl.textContent = 'Matching into Public Arena...';
+          await this.joinMatchRoom('public-arena-1', '');
+        });
+
+        // Private Room Join / Create
+        document.getElementById('join-private-btn').addEventListener('click', async () => {
+          this.audio.init();
+          this.localName = (nameInput.value.trim() || 'Ranger').slice(0, 16);
+          let code = document.getElementById('private-room-input').value.trim().toUpperCase();
+          if (!code) {
+            code = 'FORT-' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('private-room-input').value = code;
+          }
+          const pass = document.getElementById('private-pass-input').value;
+          window.location.hash = `room=${encodeURIComponent(code)}`;
+          document.getElementById('lobby-status').textContent = `Connecting to Private Room ${code}...`;
+          await this.joinMatchRoom(`private-${code}`, pass);
+        });
+
+        // PointerLock unlock returns to lobby/pause menu
+        this.controls.controls.addEventListener('unlock', () => {
+          if (!this.controls.touchMode && !this.controls.fallbackLookActive) {
+            document.getElementById('menu-badge').textContent = 'MATCH PAUSED';
+            document.getElementById('quick-play-btn').textContent = 'RESUME / REJOIN MATCH';
+            document.getElementById('menu-overlay').style.display = 'flex';
+          }
+        });
+      }
+
+      async joinMatchRoom(roomId, password) {
+        if (this.network.roomId !== roomId) {
+          await this.network.connectToRoom(roomId, password);
+        }
+
+        // Assign balanced team
+        if (this.selectedTeamPref === 'blue' || this.selectedTeamPref === 'red') {
+          this.localTeam = this.selectedTeamPref;
+        } else {
+          let blueCount = 0;
+          let redCount = 0;
+          for (const p of this.network.peers.values()) {
+            if (p.team === 'blue') blueCount++;
+            else if (p.team === 'red') redCount++;
+          }
+          this.localTeam = blueCount <= redCount ? 'blue' : 'red';
+        }
+
+        // Apply Class Stats
+        const clsCfg = CLASSES[this.localClass];
+        this.playerMaxHp = clsCfg.maxHp;
+        this.playerHp = clsCfg.maxHp;
+        this.updateHealthUI();
+
+        if (this.matchOver) {
+          this.resetMatchState();
+        }
+
+        this.respawnLocalPlayer();
+        document.getElementById('room-label').textContent = `ROOM: ${roomId.replace('private-', '').toUpperCase()}`;
+        this.updateRoleBadge(this.network.isHost);
+
+        // Reconcile 4v4 AI bots if Host
+        this.ai.reconcileTeamBalance(this.getHumanRoster());
+
+        this.controls.engage(() => {
+          document.getElementById('menu-overlay').style.display = 'none';
+        });
+        document.getElementById('menu-overlay').style.display = 'none';
+        this.showToast(`Joined ${this.localTeam.toUpperCase()} Team as ${clsCfg.label}`);
+      }
+
+      updateRoleBadge(isHost) {
+        const badge = document.getElementById('role-label');
+        badge.textContent = isHost ? '[HOST]' : '[PEER]';
+        badge.style.color = isHost ? '#facc15' : '#38bdf8';
+        if (isHost) {
+          this.ai.reconcileTeamBalance(this.getHumanRoster());
+        }
+      }
+
+      getHumanRoster() {
+        const list = [{
+          id: this.network.myId,
+          name: this.localName,
+          team: this.localTeam,
+          pos: this.playerPos,
+          vel: this.playerVel,
+          hp: this.playerHp,
+          alive: this.playerAlive
+        }];
+        for (const [peerId, p] of this.network.peers.entries()) {
+          list.push({
+            id: peerId,
+            name: p.name || 'Archer',
+            team: p.team || 'blue',
+            pos: new THREE.Vector3(p.pos?.x || 0, p.pos?.y || 0.5, p.pos?.z || 0),
+            vel: new THREE.Vector3(),
+            hp: p.hp ?? 100,
+            alive: p.alive !== false
+          });
+        }
+        return list;
+      }
+
+      getAllCombatants() {
+        const all = this.getHumanRoster();
+        for (const bot of this.ai.bots.values()) {
+          all.push(bot);
+        }
+        return all;
+      }
+
+      handlePeerChange(peerId, joined) {
+        if (!joined) {
+          this.dropFlagIfCarriedBy(peerId);
+          const vis = this.remoteVisuals.get(peerId);
+          if (vis) {
+            this.scene.remove(vis.group);
+            this.remoteVisuals.delete(peerId);
+          }
+        }
+        if (this.network.isHost) {
+          this.ai.reconcileTeamBalance(this.getHumanRoster());
+        }
+      }
+
+      handleRemotePlayerUpdate(peerId, state) {
+        let vis = this.remoteVisuals.get(peerId);
+        if (!vis || vis.team !== state.team || vis.name !== state.name) {
+          if (vis) this.scene.remove(vis.group);
+          const built = createArcherMesh(state.team || 'blue', state.name || 'Archer', false);
+          this.scene.add(built.group);
+          vis = { ...built, team: state.team, name: state.name };
+          this.remoteVisuals.set(peerId, vis);
+        }
+
+        vis.group.visible = state.alive !== false;
+        if (state.pos) {
+          vis.group.position.set(state.pos.x, state.pos.y, state.pos.z);
+        }
+        vis.group.rotation.y = state.yaw || 0;
+        const walk = performance.now() * 0.01;
+        vis.leftLeg.rotation.x = Math.sin(walk) * 0.4;
+        vis.rightLeg.rotation.x = -Math.sin(walk) * 0.4;
+
+        if (this.network.isHost) {
+          this.ai.reconcileTeamBalance(this.getHumanRoster());
+        }
+      }
+
+      handleLocalJump() {
+        if (this.playerAlive && this.playerGrounded) {
+          this.playerVel.y = 8.9;
+          this.playerGrounded = false;
+          this.audio.playJump();
+        }
+      }
+
+      handleLocalFire(power) {
+        if (!this.playerAlive) return;
+        const p = Math.max(0.18, power);
+        const clsCfg = CLASSES[this.localClass];
+        const speed = clsCfg.minSpeed + p * (clsCfg.maxSpeed - clsCfg.minSpeed);
+
+        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+        const origin = this.camera.position.clone().addScaledVector(dir, 0.65);
+        const velocity = dir.multiplyScalar(speed);
+
+        this.audio.playShoot(p);
+        this.spawnArrow(origin, velocity, this.network.myId, this.localTeam, this.localName, this.network.isHost);
+
+        this.network.broadcastEvent({
+          type: 'shoot',
+          origin: { x: origin.x, y: origin.y, z: origin.z },
+          vel: { x: velocity.x, y: velocity.y, z: velocity.z },
+          shooterId: this.network.myId,
+          team: this.localTeam,
+          shooterName: this.localName
+        });
+      }
+
+      spawnArrow(origin, velocity, shooterId, team, shooterName, authoritative) {
+        const arrowGroup = new THREE.Group();
+        const shaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.016, 0.016, 0.95, 5),
+          new THREE.MeshStandardMaterial({ color: 0xb45309, flatShading: true })
+        );
+        shaft.rotation.x = Math.PI / 2;
+        const head = new THREE.Mesh(
+          new THREE.ConeGeometry(0.04, 0.14, 4),
+          new THREE.MeshStandardMaterial({ color: 0xf8fafc, flatShading: true })
+        );
+        head.rotation.x = Math.PI / 2;
+        head.position.z = 0.5;
+        const fletch = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.01, 0.18),
+          new THREE.MeshStandardMaterial({
+            color: team === 'blue' ? 0x38bdf8 : 0xfb7185,
+            flatShading: true
+          })
+        );
+        fletch.position.z = -0.4;
+        arrowGroup.add(shaft, head, fletch);
+        arrowGroup.position.copy(origin);
+        this.scene.add(arrowGroup);
+
+        this.arrows.push({
+          mesh: arrowGroup,
+          pos: origin.clone(),
+          vel: velocity.clone(),
+          shooterId,
+          team,
+          shooterName,
+          authoritative,
+          stuck: false,
+          life: 6.0
+        });
+      }
+
+      handleNetworkEvent(evt, fromPeer) {
+        if (evt.type === 'shoot') {
+          const origin = new THREE.Vector3(evt.origin.x, evt.origin.y, evt.origin.z);
+          const vel = new THREE.Vector3(evt.vel.x, evt.vel.y, evt.vel.z);
+          // Host evaluates hits authoritatively for peer shots too
+          this.spawnArrow(origin, vel, evt.shooterId, evt.team, evt.shooterName, this.network.isHost);
+        } else if (evt.type === 'hit') {
+          if (evt.shooterId === this.network.myId) {
+            this.triggerHitmarker(evt.headshot);
+          }
+          if (evt.targetId === this.network.myId && this.playerAlive) {
+            this.applyLocalDamage(evt.damage, evt.shooterName, evt.headshot);
+          }
+          if (evt.eliminated) {
+            this.addKillFeed(
+              `${evt.shooterName} ${evt.headshot ? '🎯' : '🏹'} ${evt.targetName}`,
+              evt.shooterTeam === 'blue' ? '#38bdf8' : '#fb7185'
+            );
+          }
+        } else if (evt.type === 'flagMsg') {
+          this.addKillFeed(evt.text, evt.color);
+          this.audio.playFlagEvent(evt.isScore);
+        }
+      }
+
+      triggerHitmarker(headshot) {
+        this.audio.playHitmarker(headshot);
+        const hm = document.getElementById('hitmarker');
+        hm.classList.toggle('headshot', headshot);
+        hm.classList.add('active');
+        clearTimeout(this.hmTimer);
+        this.hmTimer = setTimeout(() => hm.classList.remove('active'), 160);
+      }
+
+      applyLocalDamage(amount, attackerName, headshot) {
+        this.playerHp = Math.max(0, this.playerHp - amount);
+        this.updateHealthUI();
+
+        const vig = document.getElementById('damage-vignette');
+        vig.style.opacity = '1';
+        clearTimeout(this.vigTimer);
+        this.vigTimer = setTimeout(() => { vig.style.opacity = '0'; }, 300);
+
+        if (this.playerHp <= 0 && this.playerAlive) {
+          this.playerAlive = false;
+          this.playerRespawnTimer = 3.0;
+          this.dropFlagIfCarriedBy(this.network.myId);
+          document.getElementById('respawn-reason').textContent =
+            `Eliminated by ${attackerName}${headshot ? ' (Headshot!)' : ''}`;
+          document.getElementById('respawn-overlay').style.display = 'flex';
+        }
+      }
+
+      updateHealthUI() {
+        document.getElementById('health-value').textContent = Math.ceil(this.playerHp);
+        const pct = (this.playerHp / this.playerMaxHp) * 100;
+        const fill = document.getElementById('health-bar-fill');
+        fill.style.width = `${pct}%`;
+        fill.style.background = pct > 40
+          ? 'linear-gradient(90deg, #22c55e, #4ade80)'
+          : 'linear-gradient(90deg, #ef4444, #f87171)';
+      }
+
+      respawnLocalPlayer() {
+        const spawns = this.world.spawnPoints[this.localTeam];
+        const sp = spawns[Math.floor(Math.random() * spawns.length)];
+        this.playerPos.copy(sp);
+        this.playerVel.set(0, 0, 0);
+        this.playerHp = this.playerMaxHp;
+        this.playerAlive = true;
+        this.controls.yaw = this.localTeam === 'blue' ? 0 : Math.PI;
+        this.controls.pitch = 0;
+        this.camera.rotation.order = 'YXZ';
+        this.camera.rotation.y = this.controls.yaw;
+        this.camera.rotation.x = 0;
+        this.updateHealthUI();
+        document.getElementById('respawn-overlay').style.display = 'none';
+      }
+
+      // =======================================================================
+      // COLLISION & LINE-OF-SIGHT HELPERS
+      // =======================================================================
+      moveEntityWithCollisions(pos, vel, radius, height, dt, isBot = false) {
+        // Horizontal X
+        pos.x += vel.x * dt;
+        for (const box of this.world.colliders) {
+          if (pos.y + height > box.minY + 0.05 && pos.y < box.maxY - 0.05 &&
+              pos.z + radius > box.minZ && pos.z - radius < box.maxZ &&
+              pos.x + radius > box.minX && pos.x - radius < box.maxX) {
+            // Auto-step up low ledges (e.g. ramp steps or 0.55m curbs)
+            const stepHeight = box.maxY - pos.y;
+            if (stepHeight > 0 && stepHeight <= 0.62) {
+              pos.y = box.maxY;
+            } else if (vel.x > 0) {
+              pos.x = box.minX - radius;
+            } else if (vel.x < 0) {
+              pos.x = box.maxX + radius;
+            }
+          }
+        }
+
+        // Horizontal Z
+        pos.z += vel.z * dt;
+        for (const box of this.world.colliders) {
+          if (pos.y + height > box.minY + 0.05 && pos.y < box.maxY - 0.05 &&
+              pos.x + radius > box.minX && pos.x - radius < box.maxX &&
+              pos.z + radius > box.minZ && pos.z - radius < box.maxZ) {
+            const stepHeight = box.maxY - pos.y;
+            if (stepHeight > 0 && stepHeight <= 0.62) {
+              pos.y = box.maxY;
+            } else if (vel.z > 0) {
+              pos.z = box.minZ - radius;
+            } else if (vel.z < 0) {
+              pos.z = box.maxZ + radius;
+            }
+          }
+        }
+
+        // Vertical Y
+        let grounded = false;
+        pos.y += vel.y * dt;
+        for (const box of this.world.colliders) {
+          if (pos.x + radius > box.minX && pos.x - radius < box.maxX &&
+              pos.z + radius > box.minZ && pos.z - radius < box.maxZ) {
+            if (vel.y <= 0 && pos.y <= box.maxY && pos.y >= box.minY - 0.4) {
+              pos.y = box.maxY;
+              vel.y = 0;
+              grounded = true;
+            } else if (vel.y > 0 && pos.y + height >= box.minY && pos.y < box.minY) {
+              pos.y = box.minY - height;
+              vel.y = 0;
+            }
+          }
+        }
+
+        if (!isBot) {
+          this.playerGrounded = grounded;
+        }
+        return grounded;
+      }
+
+      pointInsideWorld(pt) {
+        for (const box of this.world.colliders) {
+          if (pt.x >= box.minX && pt.x <= box.maxX &&
+              pt.y >= box.minY && pt.y <= box.maxY &&
+              pt.z >= box.minZ && pt.z <= box.maxZ) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      hasLineOfSight(fromPos, toPos) {
+        const start = fromPos.clone().add(new THREE.Vector3(0, 1.4, 0));
+        const end = toPos.clone().add(new THREE.Vector3(0, 1.4, 0));
+        const steps = 10;
+        for (let i = 1; i < steps; i++) {
+          const sample = new THREE.Vector3().lerpVectors(start, end, i / steps);
+          if (this.pointInsideWorld(sample)) return false;
+        }
+        return true;
+      }
+
+      // =======================================================================
+      // AUTHORITATIVE CTF FLAG LOGIC
+      // =======================================================================
+      dropFlagIfCarriedBy(entityId) {
+        for (const team of ['blue', 'red']) {
+          const f = this.flags[team];
+          if (f.state === 'carried' && f.carrierId === entityId) {
+            f.state = 'dropped';
+            f.carrierId = null;
+            f.dropTimer = 15.0; // Auto-returns after 15 seconds
+          }
+        }
+      }
+
+      updateCTFLogic(dt, allCombatants) {
+        const wave = performance.now() * 0.006;
+        for (const team of ['blue', 'red']) {
+          const flag = this.flags[team];
+          flag.visual.cloth.rotation.y = Math.sin(wave + (team === 'blue' ? 0 : 2)) * 0.22;
+
+          if (this.network.isHost && !this.matchOver) {
+            if (flag.state === 'carried') {
+              const carrier = allCombatants.find((c) => c.id === flag.carrierId && c.alive);
+              if (!carrier) {
+                flag.state = 'dropped';
+                flag.carrierId = null;
+                flag.dropTimer = 15.0;
+              } else {
+                flag.pos.copy(carrier.pos).add(new THREE.Vector3(0, 0.9, 0));
+
+                // Check Capture at Carrier's Home Pedestal!
+                const homePedestal = this.world.pedestals[carrier.team];
+                if (carrier.pos.distanceTo(homePedestal) < 2.4) {
+                  this.scores[carrier.team] += 1;
+                  flag.state = 'base';
+                  flag.carrierId = null;
+                  flag.pos.copy(this.world.pedestals[team]);
+
+                  const msg = `⚑ ${carrier.name} CAPTURED THE ${team.toUpperCase()} FLAG!`;
+                  const col = carrier.team === 'blue' ? '#38bdf8' : '#fb7185';
+                  this.addKillFeed(msg, col);
+                  this.audio.playFlagEvent(true);
+                  this.network.broadcastEvent({ type: 'flagMsg', text: msg, color: col, isScore: true });
+
+                  if (this.scores[carrier.team] >= WIN_SCORE) {
+                    this.handleMatchWin(carrier.team);
+                  }
+                }
+              }
+            } else {
+              // Base or Dropped: check touch interactions
+              if (flag.state === 'dropped') {
+                flag.dropTimer -= dt;
+                if (flag.dropTimer <= 0) {
+                  flag.state = 'base';
+                  flag.pos.copy(this.world.pedestals[team]);
+                }
+              }
+
+              for (const c of allCombatants) {
+                if (!c.alive) continue;
+                if (c.pos.distanceTo(flag.pos) < 1.9) {
+                  if (c.team !== team) {
+                    // Enemy picks up flag!
+                    flag.state = 'carried';
+                    flag.carrierId = c.id;
+                    const msg = `⚑ ${c.name} took the ${team.toUpperCase()} Flag!`;
+                    const col = c.team === 'blue' ? '#38bdf8' : '#fb7185';
+                    this.addKillFeed(msg, col);
+                    this.audio.playFlagEvent(false);
+                    this.network.broadcastEvent({ type: 'flagMsg', text: msg, color: col, isScore: false });
+                    break;
+                  } else if (flag.state === 'dropped') {
+                    // Friendly teammate instantly returns dropped flag!
+                    flag.state = 'base';
+                    flag.pos.copy(this.world.pedestals[team]);
+                    const msg = `↺ ${c.name} returned the ${team.toUpperCase()} Flag!`;
+                    const col = team === 'blue' ? '#38bdf8' : '#fb7185';
+                    this.addKillFeed(msg, col);
+                    this.audio.playFlagEvent(false);
+                    this.network.broadcastEvent({ type: 'flagMsg', text: msg, color: col, isScore: false });
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          // Update Flag 3D Mesh Position
+          if (flag.state === 'carried' && flag.carrierId === this.network.myId) {
+            // Position slightly behind local camera so it doesn't block view
+            flag.visual.group.visible = false;
+          } else {
+            flag.visual.group.visible = true;
+            flag.visual.group.position.copy(flag.pos);
+          }
+        }
+
+        // Update HUD Flag Badges & Carrying Banner
+        document.getElementById('blue-score').textContent = this.scores.blue;
+        document.getElementById('red-score').textContent = this.scores.red;
+
+        for (const team of ['blue', 'red']) {
+          const f = this.flags[team];
+          const textEl = document.getElementById(`${team}-flag-text`);
+          const badgeEl = document.getElementById(`${team}-flag-badge`);
+          const label = team === 'blue' ? 'Blue Flag' : 'Red Flag';
+
+          if (f.state === 'base') {
+            textEl.textContent = `${label}: At Base`;
+            badgeEl.classList.remove('alert');
+          } else if (f.state === 'carried') {
+            const carrier = allCombatants.find((c) => c.id === f.carrierId);
+            textEl.textContent = `${label}: Taken (${carrier ? carrier.name : 'Archer'})`;
+            badgeEl.classList.add('alert');
+          } else {
+            textEl.textContent = `${label}: Dropped (${Math.ceil(f.dropTimer)}s)`;
+            badgeEl.classList.add('alert');
+          }
+        }
+
+        const enemyTeam = this.localTeam === 'blue' ? 'red' : 'blue';
+        const carrying = this.flags[enemyTeam].state === 'carried' &&
+          this.flags[enemyTeam].carrierId === this.network.myId;
+        document.getElementById('carrying-banner').style.display = carrying ? 'block' : 'none';
+      }
+
+      handleMatchWin(winnerTeam) {
+        this.matchOver = true;
+        this.controls.disengage();
+        document.getElementById('menu-badge').textContent = 'MATCH COMPLETE';
+        document.getElementById('menu-title').textContent = `${winnerTeam.toUpperCase()} TEAM VICTORY!`;
+        document.getElementById('menu-subtitle').textContent =
+          `Final Score — Blue ${this.scores.blue} : ${this.scores.red} Red. Click below to start a rematch!`;
+        document.getElementById('quick-play-btn').textContent = 'PLAY REMATCH';
+        document.getElementById('menu-overlay').style.display = 'flex';
+      }
+
+      resetMatchState() {
+        this.scores = { blue: 0, red: 0 };
+        this.matchOver = false;
+        for (const team of ['blue', 'red']) {
+          this.flags[team].state = 'base';
+          this.flags[team].carrierId = null;
+          this.flags[team].pos.copy(this.world.pedestals[team]);
+        }
+      }
+
+      applyHostWorldSync(snap) {
+        if (!snap) return;
+        this.scores = snap.scores;
+        for (const team of ['blue', 'red']) {
+          const fs = snap.flags[team];
+          this.flags[team].state = fs.state;
+          this.flags[team].carrierId = fs.carrierId;
+          this.flags[team].dropTimer = fs.dropTimer;
+          this.flags[team].pos.set(fs.x, fs.y, fs.z);
+        }
+        if (snap.bots) {
+          this.ai.syncFromHostSnapshot(snap.bots);
+        }
+        if (snap.matchOver && !this.matchOver) {
+          const winner = snap.scores.blue >= WIN_SCORE ? 'blue' : 'red';
+          this.handleMatchWin(winner);
+        }
+      }
+
+      // =======================================================================
+      // ARROW PROJECTILE PHYSICS & HIT DETECTION
+      // =======================================================================
+      updateArrows(dt, allCombatants) {
+        for (let i = this.arrows.length - 1; i >= 0; i--) {
+          const a = this.arrows[i];
+          a.life -= dt;
+          if (a.life <= 0) {
+            this.scene.remove(a.mesh);
+            this.arrows.splice(i, 1);
+            continue;
+          }
+
+          if (a.stuck) continue;
+
+          // Parabolic Gravity Arc
+          a.vel.y += ARROW_GRAVITY * dt;
+          const step = a.vel.clone().multiplyScalar(dt);
+          const nextPos = a.pos.clone().add(step);
+
+          // Rotate arrow mesh to align with velocity vector
+          if (a.vel.lengthSq() > 0.01) {
+            const lookTarget = a.pos.clone().add(a.vel);
+            a.mesh.lookAt(lookTarget);
+          }
+
+          // Check Combatant Hitboxes (Host-authoritative)
+          let hitEntity = null;
+          let isHeadshot = false;
+
+          if (a.authoritative) {
+            for (const target of allCombatants) {
+              if (!target.alive || target.id === a.shooterId || target.team === a.team) continue;
+              const dx = nextPos.x - target.pos.x;
+              const dz = nextPos.z - target.pos.z;
+              const horizDist = Math.hypot(dx, dz);
+              const relY = nextPos.y - target.pos.y;
+
+              if (horizDist < 0.56 && relY >= 0 && relY <= 1.98) {
+                hitEntity = target;
+                isHeadshot = relY >= 1.48;
+                break;
+              }
+            }
+          }
+
+          if (hitEntity) {
+            const speed = a.vel.length();
+            const baseDmg = Math.round(Math.min(72, Math.max(24, speed * 0.95)));
+            const totalDmg = isHeadshot ? Math.round(baseDmg * 1.65) : baseDmg;
+
+            let eliminated = false;
+            if (hitEntity.isBot) {
+              hitEntity.hp = Math.max(0, hitEntity.hp - totalDmg);
+              if (hitEntity.hp <= 0) {
+                hitEntity.alive = false;
+                hitEntity.respawnTimer = 3.2;
+                hitEntity.visual.group.visible = false;
+                eliminated = true;
+                this.dropFlagIfCarriedBy(hitEntity.id);
+              }
+            } else if (hitEntity.id === this.network.myId) {
+              eliminated = (this.playerHp - totalDmg) <= 0;
+              this.applyLocalDamage(totalDmg, a.shooterName, isHeadshot);
+            } else {
+              eliminated = (hitEntity.hp - totalDmg) <= 0;
+            }
+
+            if (a.shooterId === this.network.myId) {
+              this.triggerHitmarker(isHeadshot);
+            }
+
+            if (eliminated) {
+              this.addKillFeed(
+                `${a.shooterName} ${isHeadshot ? '🎯' : '🏹'} ${hitEntity.name}`,
+                a.team === 'blue' ? '#38bdf8' : '#fb7185'
+              );
+            }
+
+            this.network.broadcastEvent({
+              type: 'hit',
+              shooterId: a.shooterId,
+              shooterName: a.shooterName,
+              shooterTeam: a.team,
+              targetId: hitEntity.id,
+              targetName: hitEntity.name,
+              damage: totalDmg,
+              headshot: isHeadshot,
+              eliminated
+            });
+
+            this.scene.remove(a.mesh);
+            this.arrows.splice(i, 1);
+            continue;
+          }
+
+          // Check Map Geometry Impact
+          if (this.pointInsideWorld(nextPos)) {
+            a.stuck = true;
+            a.life = 4.0;
+            a.mesh.position.copy(nextPos);
+            continue;
+          }
+
+          a.pos.copy(nextPos);
+          a.mesh.position.copy(a.pos);
+        }
+      }
+
+      // =======================================================================
+      // MAIN FRAME LOOP
+      // =======================================================================
+      loop(now) {
+        requestAnimationFrame((t) => this.loop(t));
+        const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+        this.lastTime = now;
+
+        const clsCfg = CLASSES[this.localClass];
+
+        // 1. Local Player Movement & Bow Draw State
+        if (this.playerAlive) {
+          if (this.controls.isEngaged && !this.matchOver) {
+            const { strafe, forward } = this.controls.getMovementInput();
+            const fwdVec = new THREE.Vector3(-Math.sin(this.controls.yaw), 0, -Math.cos(this.controls.yaw));
+            const rightVec = new THREE.Vector3(Math.cos(this.controls.yaw), 0, -Math.sin(this.controls.yaw));
+
+            const wishDir = new THREE.Vector3()
+              .addScaledVector(fwdVec, forward)
+              .addScaledVector(rightVec, strafe);
+            if (wishDir.lengthSq() > 1) wishDir.normalize();
+
+            const moveMult = this.controls.isDrawing ? 0.76 : 1.0;
+            this.playerVel.x = wishDir.x * clsCfg.moveSpeed * moveMult;
+            this.playerVel.z = wishDir.z * clsCfg.moveSpeed * moveMult;
+          } else {
+            this.playerVel.x *= 0.85;
+            this.playerVel.z *= 0.85;
+          }
+
+          this.playerVel.y += GRAVITY * dt;
+          this.moveEntityWithCollisions(this.playerPos, this.playerVel, 0.45, 1.85, dt, false);
+
+          // Position Eye Camera
+          this.camera.position.set(this.playerPos.x, this.playerPos.y + 1.62, this.playerPos.z);
+
+          // Update Bow Charge & Visual Pullback
+          if (this.controls.isDrawing) {
+            this.controls.charge = Math.min(1, this.controls.charge + dt / clsCfg.drawTime);
+          }
+
+          const c = this.controls.charge;
+          this.nockedArrow.position.z = -0.18 + c * 0.28;
+          this.bowGroup.position.z = -0.52 + c * 0.08;
+          this.bowGroup.position.x = 0.32 - c * 0.09;
+
+          // Dynamic Crosshair & Charge Arc
+          const spread = 14 - c * 9;
+          document.getElementById('ch-top').style.top = `${45 - spread - 9}px`;
+          document.getElementById('ch-bottom').style.top = `${45 + spread}px`;
+          document.getElementById('ch-left').style.left = `${45 - spread - 9}px`;
+          document.getElementById('ch-right').style.left = `${45 + spread}px`;
+          document.getElementById('charge-arc').style.strokeDashoffset = `${176 * (1 - c)}`;
+
+          // Dynamic FOV Zoom (RMB / Touch Zoom + Bow Draw focus)
+          const targetFov = this.controls.isZooming
+            ? clsCfg.zoomFov
+            : (72 - c * 9);
+          if (Math.abs(this.camera.fov - targetFov) > 0.05) {
+            this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, dt * 10);
+            this.camera.updateProjectionMatrix();
+          }
+        } else {
+          // Respawn Countdown
+          this.playerRespawnTimer -= dt;
+          document.getElementById('respawn-timer').textContent =
+            `Respawning in ${Math.max(0, this.playerRespawnTimer).toFixed(1)}s...`;
+          if (this.playerRespawnTimer <= 0) {
+            this.respawnLocalPlayer();
+          }
+        }
+
+        // 2. Update AI Bots, Projectiles & Authoritative CTF State
+        const allCombatants = this.getAllCombatants();
+        this.ai.update(dt, allCombatants);
+        this.updateArrows(dt, allCombatants);
+        this.updateCTFLogic(dt, allCombatants);
+
+        // 3. Network Sync Broadcasts (20 Hz)
+        this.syncTimer += dt;
+        if (this.syncTimer >= 0.05 && (this.network.room || this.network.offlineFallback)) {
+          this.syncTimer = 0;
+
+          this.network.broadcastPlayerState({
+            name: this.localName,
+            team: this.localTeam,
+            cls: this.localClass,
+            pos: { x: this.playerPos.x, y: this.playerPos.y, z: this.playerPos.z },
+            yaw: this.controls.yaw,
+            pitch: this.controls.pitch,
+            charge: this.controls.charge,
+            hp: this.playerHp,
+            alive: this.playerAlive
+          });
+
+          if (this.network.isHost) {
+            const botList = Array.from(this.ai.bots.values()).map((b) => ({
+              id: b.id,
+              name: b.name,
+              team: b.team,
+              x: b.pos.x,
+              y: b.pos.y,
+              z: b.pos.z,
+              yaw: b.yaw,
+              hp: b.hp,
+              alive: b.alive
+            }));
+
+            this.network.broadcastWorldSync({
+              scores: this.scores,
+              matchOver: this.matchOver,
+              flags: {
+                blue: {
+                  state: this.flags.blue.state,
+                  carrierId: this.flags.blue.carrierId,
+                  dropTimer: this.flags.blue.dropTimer,
+                  x: this.flags.blue.pos.x,
+                  y: this.flags.blue.pos.y,
+                  z: this.flags.blue.pos.z
+                },
+                red: {
+                  state: this.flags.red.state,
+                  carrierId: this.flags.red.carrierId,
+                  dropTimer: this.flags.red.dropTimer,
+                  x: this.flags.red.pos.x,
+                  y: this.flags.red.pos.y,
+                  z: this.flags.red.pos.z
+                }
+              },
+              bots: botList
+            });
+          }
+        }
+
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      onResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    }
+
+    // Boot Game
+    window.addEventListener('DOMContentLoaded', () => {
+      new GameManager();
+    });
+  </script>
+</body>
+</html>

@@ -262,11 +262,12 @@
 
     #hitmarker {
       position: absolute;
-      width: 26px;
-      height: 26px;
+      width: 34px;
+      height: 34px;
       opacity: 0;
-      transform: scale(0.7);
+      transform: scale(0.75);
       transition: opacity 0.08s ease, transform 0.08s ease;
+      pointer-events: none;
     }
 
     #hitmarker.active {
@@ -274,24 +275,24 @@
       transform: scale(1);
     }
 
-    #hitmarker::before, #hitmarker::after {
-      content: '';
+    .hm-line {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 22px;
+      width: 7px;
       height: 2.5px;
       background: #ffffff;
-      box-shadow: 0 0 5px rgba(0, 0, 0, 0.9);
+      border-radius: 2px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.95);
     }
 
-    #hitmarker.headshot::before, #hitmarker.headshot::after {
+    #hitmarker.headshot .hm-line {
       background: #ef4444;
       box-shadow: 0 0 8px #ef4444;
     }
 
-    #hitmarker::before { transform: translate(-50%, -50%) rotate(45deg); }
-    #hitmarker::after { transform: translate(-50%, -50%) rotate(-45deg); }
+    .hm-tl { top: 7px; left: 6px; transform: rotate(45deg); }
+    .hm-tr { top: 7px; right: 6px; transform: rotate(-45deg); }
+    .hm-bl { bottom: 7px; left: 6px; transform: rotate(-45deg); }
+    .hm-br { bottom: 7px; right: 6px; transform: rotate(45deg); }
 
     /* Kill Feed (Top Right) */
     #killfeed {
@@ -888,7 +889,12 @@
       <div class="ch-tick ch-bottom" id="ch-bottom"></div>
       <div class="ch-tick ch-left" id="ch-left"></div>
       <div class="ch-tick ch-right" id="ch-right"></div>
-      <div id="hitmarker"></div>
+      <div id="hitmarker">
+        <div class="hm-line hm-tl"></div>
+        <div class="hm-line hm-tr"></div>
+        <div class="hm-line hm-bl"></div>
+        <div class="hm-line hm-br"></div>
+      </div>
     </div>
 
     <!-- Kill Feed -->
@@ -1010,17 +1016,17 @@
     const CLASSES = {
       scout: {
         label: 'Scout',
-        moveSpeed: 12.2,
+        moveSpeed: 9.2,
         drawTime: 0.62,
         minSpeed: 24,
         maxSpeed: 64,
         zoomFov: 64,
         maxHp: 95,
-        desc: 'Scout: +22% movement speed & rapid bow draw (0.62s full charge).'
+        desc: 'Scout: Agile movement speed & rapid bow draw (0.62s full charge).'
       },
       marksman: {
         label: 'Marksman',
-        moveSpeed: 9.8,
+        moveSpeed: 7.4,
         drawTime: 0.92,
         minSpeed: 28,
         maxSpeed: 82,
@@ -1031,13 +1037,12 @@
     };
 
     const BOT_NAMES = [
-      'Aldric', 'Rowan', 'Garrick', 'Isolde',
-      'Thorne', 'Bram', 'Lyra', 'Cedric',
-      'Vesper', 'Kael', 'Mira', 'Orin'
+      'Alistair', 'Rowan', 'Garrick', 'Lyra',
+      'Cedric', 'Isolde', 'Thorne', 'Vesper'
     ];
 
     // =========================================================================
-    // MODULE 1: PROCEDURAL AUDIO ENGINE (Web Audio API)
+    // MODULE 1: PROCEDURAL WEB AUDIO SYNTHESIZER
     // =========================================================================
     class AudioEngine {
       constructor() {
@@ -1143,7 +1148,7 @@
     class CastleWorld {
       constructor(scene) {
         this.scene = scene;
-        this.colliders = []; // Array of AABB { minX, maxX, minY, maxY, minZ, maxZ, isRamp, rampAxis, rampDir }
+        this.colliders = [];
         this.staticMeshes = [];
         this.pedestals = {
           blue: new THREE.Vector3(0, 0.4, 42),
@@ -1167,13 +1172,13 @@
         this.buildEnvironment();
       }
 
-      addBox(x, y, z, w, h, d, color, castShadow = true, receiveShadow = true) {
+      addBox(x, y, z, w, h, d, color, castShadow = true, receiveShadow = true, isStep = false) {
         const geo = new THREE.BoxGeometry(w, h, d);
         const mat = new THREE.MeshStandardMaterial({
           color,
           flatShading: true,
           roughness: 0.85,
-          metalness: 0.05
+          metalness: 0.06
         });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(x, y, z);
@@ -1188,13 +1193,71 @@
           minY: y - h / 2,
           maxY: y + h / 2,
           minZ: z - d / 2,
-          maxZ: z + d / 2
+          maxZ: z + d / 2,
+          isStep
         });
         return mesh;
       }
 
+      addDecorMesh(mesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.scene.add(mesh);
+        this.staticMeshes.push(mesh);
+        return mesh;
+      }
+
+      addTree(x, z, scale = 1.0) {
+        const trunk = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 2.4 * scale, 6),
+          new THREE.MeshStandardMaterial({ color: 0x5c3a21, flatShading: true, roughness: 0.95 })
+        );
+        trunk.position.set(x, 1.2 * scale, z);
+        this.addDecorMesh(trunk);
+
+        const foliageColors = [0x2d5a27, 0x3a7233, 0x478a3e];
+        for (let i = 0; i < 3; i++) {
+          const cone = new THREE.Mesh(
+            new THREE.ConeGeometry((1.85 - i * 0.38) * scale, (2.3 - i * 0.25) * scale, 7),
+            new THREE.MeshStandardMaterial({ color: foliageColors[i], flatShading: true, roughness: 0.85 })
+          );
+          cone.position.set(x, (2.9 + i * 1.15) * scale, z);
+          cone.rotation.y = i * 0.7;
+          this.addDecorMesh(cone);
+        }
+      }
+
+      addBrazier(x, y, z) {
+        const stand = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.32, 0.44, 0.85, 6),
+          new THREE.MeshStandardMaterial({ color: 0x334155, flatShading: true, metalness: 0.4, roughness: 0.6 })
+        );
+        stand.position.set(x, y + 0.425, z);
+        this.addDecorMesh(stand);
+
+        const bowl = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.55, 0.28, 0.35, 6),
+          new THREE.MeshStandardMaterial({ color: 0x1e293b, flatShading: true, metalness: 0.5 })
+        );
+        bowl.position.set(x, y + 0.95, z);
+        this.addDecorMesh(bowl);
+
+        const flame = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.36, 0),
+          new THREE.MeshStandardMaterial({
+            color: 0xf97316,
+            emissive: 0xea580c,
+            emissiveIntensity: 0.9,
+            flatShading: true
+          })
+        );
+        flame.position.set(x, y + 1.28, z);
+        flame.scale.set(0.85, 1.35, 0.85);
+        this.scene.add(flame);
+      }
+
       addRamp(x, yBottom, z, w, h, d, axis, dir, color = 0x8b5a2b) {
-        // Build visual sloped ramp via wedge geometry + step-friendly collider
+        // Build visual sloped ramp with side stringer rails + step-friendly collider
         const shape = new THREE.Shape();
         if (axis === 'z') {
           if (dir > 0) {
@@ -1217,10 +1280,22 @@
           mesh.receiveShadow = true;
           this.scene.add(mesh);
           this.staticMeshes.push(mesh);
+
+          // Decorative wooden side trim beams
+          [-w / 2 + 0.15, w / 2 - 0.15].forEach((sideX) => {
+            const beamLen = Math.hypot(d, h);
+            const beam = new THREE.Mesh(
+              new THREE.BoxGeometry(0.24, 0.34, beamLen),
+              new THREE.MeshStandardMaterial({ color: 0x5c3a21, flatShading: true })
+            );
+            beam.position.set(x + sideX, yBottom + h / 2 + 0.12, z);
+            beam.rotation.x = dir > 0 ? -Math.atan2(h, d) : Math.atan2(h, d);
+            this.addDecorMesh(beam);
+          });
         }
 
-        // Subdivide ramp into 8 smooth stair steps for rock-solid walking/AI navigation
-        const steps = 8;
+        // Subdivide ramp into 12 smooth stair steps for realistic walking/AI navigation
+        const steps = 12;
         for (let i = 0; i < steps; i++) {
           const t = (i + 1) / steps;
           const stepH = h * t;
@@ -1233,21 +1308,22 @@
             minY: yBottom,
             maxY: yBottom + stepH,
             minZ: zPos - stepD / 2,
-            maxZ: zPos + stepD / 2
+            maxZ: zPos + stepD / 2,
+            isStep: true
           });
         }
       }
 
       buildEnvironment() {
-        // Sky & Atmospheric Fog
-        this.scene.background = new THREE.Color(0x7cc4fa);
-        this.scene.fog = new THREE.FogExp2(0x8ecdf8, 0.0065);
+        // Warm Golden-Hour Sky & Atmospheric Fog
+        this.scene.background = new THREE.Color(0x74b9f7);
+        this.scene.fog = new THREE.FogExp2(0x88c6f8, 0.0058);
 
-        // Lighting
-        const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x3f6212, 0.85);
+        // Three-point outdoor sunlight + sky bounce
+        const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x365314, 0.88);
         this.scene.add(hemi);
 
-        const sun = new THREE.DirectionalLight(0xfffbeb, 1.45);
+        const sun = new THREE.DirectionalLight(0xfffbeb, 1.5);
         sun.position.set(42, 68, 28);
         sun.castShadow = true;
         sun.shadow.mapSize.width = 2048;
@@ -1262,38 +1338,76 @@
         sun.shadow.bias = -0.0005;
         this.scene.add(sun);
 
-        // Grass Courtyard Floor
+        // Grass Courtyard Floor + Stone Flagstone Center Courtyard + Trimmed Stone Border
         this.addBox(0, -1, 0, 68, 2, 112, 0x4d7c0f, false, true);
-        // Stone Center Courtyard Paving
-        this.addBox(0, -0.45, 0, 26, 1, 96, 0x94a3b8, false, true);
+        this.addBox(0, -0.46, 0, 26, 1, 96, 0x94a3b8, false, true);
+        this.addBox(-13.4, -0.42, 0, 0.8, 1, 96, 0x64748b, false, true);
+        this.addBox(13.4, -0.42, 0, 0.8, 1, 96, 0x64748b, false, true);
 
-        // Perimeter Castle Walls
+        // Perimeter Castle Walls with Crenellations (Merlons) & Buttresses
         const wallColor = 0x64748b;
         const trimColor = 0x475569;
-        this.addBox(-33, 5, 0, 2, 10, 112, wallColor);
-        this.addBox(33, 5, 0, 2, 10, 112, wallColor);
-        this.addBox(0, 5, 55, 68, 10, 2, wallColor);
-        this.addBox(0, 5, -55, 68, 10, 2, wallColor);
+        const lightStone = 0x94a3b8;
+        this.addBox(-33, 5, 0, 2.2, 10, 112, wallColor);
+        this.addBox(33, 5, 0, 2.2, 10, 112, wallColor);
+        this.addBox(0, 5, 55, 68, 10, 2.2, wallColor);
+        this.addBox(0, 5, -55, 68, 10, 2.2, wallColor);
 
-        // Four Corner Watchtowers
+        // Wall Merlons & Stone Buttresses for realistic fortress depth
+        for (let z = -48; z <= 48; z += 8) {
+          [-31.6, 31.6].forEach((bx) => {
+            const buttress = new THREE.Mesh(
+              new THREE.BoxGeometry(1.1, 9.6, 1.8),
+              new THREE.MeshStandardMaterial({ color: trimColor, flatShading: true })
+            );
+            buttress.position.set(bx, 4.8, z);
+            this.addDecorMesh(buttress);
+          });
+          [-33, 33].forEach((wx) => {
+            const merlon = new THREE.Mesh(
+              new THREE.BoxGeometry(2.4, 1.3, 2.6),
+              new THREE.MeshStandardMaterial({ color: lightStone, flatShading: true })
+            );
+            merlon.position.set(wx, 10.65, z);
+            this.addDecorMesh(merlon);
+          });
+        }
+        for (let x = -24; x <= 24; x += 8) {
+          [-55, 55].forEach((wz) => {
+            const merlon = new THREE.Mesh(
+              new THREE.BoxGeometry(2.6, 1.3, 2.4),
+              new THREE.MeshStandardMaterial({ color: lightStone, flatShading: true })
+            );
+            merlon.position.set(x, 10.65, wz);
+            this.addDecorMesh(merlon);
+          });
+        }
+
+        // Four Corner Watchtowers with Cornices, Battlements & Spires
         const towerCoords = [[-31, 53], [31, 53], [-31, -53], [31, -53]];
         towerCoords.forEach(([tx, tz]) => {
-          this.addBox(tx, 7.5, tz, 7, 15, 7, trimColor);
-          const roofGeo = new THREE.ConeGeometry(5.6, 5.5, 4);
+          this.addBox(tx, 7.5, tz, 7.2, 15, 7.2, trimColor);
+          // Stone Tower Crown Collar
+          const crown = new THREE.Mesh(
+            new THREE.BoxGeometry(8.2, 1.2, 8.2),
+            new THREE.MeshStandardMaterial({ color: lightStone, flatShading: true })
+          );
+          crown.position.set(tx, 15.1, tz);
+          this.addDecorMesh(crown);
+
+          const roofGeo = new THREE.ConeGeometry(5.8, 5.8, 4);
           const roofMat = new THREE.MeshStandardMaterial({
             color: tz > 0 ? 0x1d4ed8 : 0xb91c1c,
             flatShading: true
           });
           const roof = new THREE.Mesh(roofGeo, roofMat);
-          roof.position.set(tx, 17.5, tz);
+          roof.position.set(tx, 18.4, tz);
           roof.rotation.y = Math.PI / 4;
-          roof.castShadow = true;
-          this.scene.add(roof);
+          this.addDecorMesh(roof);
         });
 
-        // Central Stone Overpass Bridge (Elevated sniper lane!)
+        // Central Stone Overpass Bridge (Elevated sniper lane with stone arches & battlements)
         this.addBox(0, 3.6, 0, 24, 0.8, 10, 0x78716c);
-        // Bridge Support Pillars
         this.addBox(-10, 1.8, -3.5, 2.2, 3.6, 2.2, trimColor);
         this.addBox(10, 1.8, -3.5, 2.2, 3.6, 2.2, trimColor);
         this.addBox(-10, 1.8, 3.5, 2.2, 3.6, 2.2, trimColor);
@@ -1311,7 +1425,7 @@
           this.addRamp(sx, 0, -14, 6.6, 3.6, 12, 'z', 1, 0x92400e);
         });
 
-        // Tactical Mid-Field Archery Cover Pillars & Wooden Barricades
+        // Tactical Mid-Field Archery Cover Pillars, Wooden Barricades & Crates
         const coverBlocks = [
           [-7, 1.3, 18, 3.2, 2.6, 1.4, trimColor],
           [7, 1.3, 18, 3.2, 2.6, 1.4, trimColor],
@@ -1326,21 +1440,43 @@
         ];
         coverBlocks.forEach((b) => this.addBox(...b));
 
+        // Courtyard Cypress/Pine Trees & Lit Braziers for Atmospheric Realism
+        const treeSpots = [
+          [-26, 12, 1.1], [26, 12, 1.05], [-26, -12, 1.05], [26, -12, 1.1],
+          [-27, 41, 0.95], [27, 41, 1.0], [-27, -41, 1.0], [27, -41, 0.95]
+        ];
+        treeSpots.forEach(([tx, tz, sc]) => this.addTree(tx, tz, sc));
+
+        this.addBrazier(-6.2, 0.4, 37);
+        this.addBrazier(6.2, 0.4, 37);
+        this.addBrazier(-6.2, 0.4, -37);
+        this.addBrazier(6.2, 0.4, -37);
+
         // Symmetrical Blue (+Z) and Red (-Z) Base Platforms & Pedestals
         this.buildBase('blue', 42, 0x2563eb);
         this.buildBase('red', -42, 0xdc2626);
       }
 
       buildBase(team, zCenter, bannerColor) {
-        // Raised Stone Base Dais
-        this.addBox(0, 0.2, zCenter, 14, 0.4, 12, 0xcbd5e1);
+        // Raised Two-Tier Stone Base Dais
+        this.addBox(0, 0.2, zCenter, 14, 0.4, 12, 0xcbd5e1, true, true, true);
         // Flag Pedestal Altar
-        this.addBox(0, 0.65, zCenter, 2.6, 0.5, 2.6, bannerColor);
-        // Decorative Archway Pillars behind base
+        this.addBox(0, 0.65, zCenter, 2.6, 0.5, 2.6, bannerColor, true, true, true);
+        // Decorative Archway Pillars & Hanging Team Tapestries behind base
         const backZ = zCenter + (zCenter > 0 ? 7.5 : -7.5);
         this.addBox(-6.5, 3.5, backZ, 2.4, 7, 2.4, 0x475569);
         this.addBox(6.5, 3.5, backZ, 2.4, 7, 2.4, 0x475569);
         this.addBox(0, 6.8, backZ, 15.5, 1.5, 2.6, bannerColor);
+
+        // Hanging Citadel Banners on Archway Pillars
+        [-6.5, 6.5].forEach((px) => {
+          const banner = new THREE.Mesh(
+            new THREE.BoxGeometry(1.3, 3.4, 0.12),
+            new THREE.MeshStandardMaterial({ color: bannerColor, flatShading: true })
+          );
+          banner.position.set(px, 3.8, backZ + (zCenter > 0 ? -1.28 : 1.28));
+          this.addDecorMesh(banner);
+        });
       }
     }
 
@@ -1350,46 +1486,111 @@
     function createArcherMesh(team, name = 'Archer', isBot = false) {
       const group = new THREE.Group();
       const primaryColor = team === 'blue' ? 0x2563eb : 0xdc2626;
-      const trimColor = team === 'blue' ? 0x93c5fd : 0xfca5a5;
+      const darkAccent = team === 'blue' ? 0x1e3a8a : 0x7f1d1d;
+      const leatherMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, flatShading: true, roughness: 0.85 });
+      const armorMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, flatShading: true, metalness: 0.45, roughness: 0.4 });
+      const tunicMat = new THREE.MeshStandardMaterial({ color: primaryColor, flatShading: true, roughness: 0.8 });
 
-      // Torso (Tunic)
-      const torso = new THREE.Mesh(
-        new THREE.BoxGeometry(0.72, 0.95, 0.44),
-        new THREE.MeshStandardMaterial({ color: primaryColor, flatShading: true })
-      );
-      torso.position.y = 1.05;
+      // Articulated Legs with Leather Boots & Tunic Skirt
+      const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, flatShading: true });
+      const leftLeg = new THREE.Group();
+      leftLeg.position.set(-0.18, 0.72, 0);
+      const lThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.46, 0.24), pantsMat);
+      lThigh.position.y = -0.22;
+      const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.30), leatherMat);
+      lBoot.position.set(0, -0.58, -0.03);
+      leftLeg.add(lThigh, lBoot);
+
+      const rightLeg = new THREE.Group();
+      rightLeg.position.set(0.18, 0.72, 0);
+      const rThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.46, 0.24), pantsMat);
+      rThigh.position.y = -0.22;
+      const rBoot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.30), leatherMat);
+      rBoot.position.set(0, -0.58, -0.03);
+      rightLeg.add(rThigh, rBoot);
+      group.add(leftLeg, rightLeg);
+
+      // Sculpted Torso with Chestplate, Leather Belt & Flowing Cloak
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.86, 0.38), tunicMat);
+      torso.position.y = 1.12;
       torso.castShadow = true;
       group.add(torso);
 
-      // Head + Medieval Hood
+      const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.52, 0.42), armorMat);
+      chestPlate.position.set(0, 1.24, 0);
+      group.add(chestPlate);
+
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.12, 0.43), leatherMat);
+      belt.position.set(0, 0.76, 0);
+      const buckle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.14, 0.45),
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, flatShading: true, metalness: 0.6 })
+      );
+      buckle.position.set(0, 0.76, 0);
+      group.add(belt, buckle);
+
+      // Shoulder Pauldrons
+      [-0.4, 0.4].forEach((sx) => {
+        const pauldron = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.36), armorMat);
+        pauldron.position.set(sx, 1.46, 0);
+        pauldron.rotation.z = sx < 0 ? 0.22 : -0.22;
+        group.add(pauldron);
+      });
+
+      // Back Cloak & Leather Quiver with Feathered Arrows
+      const cloak = new THREE.Mesh(
+        new THREE.BoxGeometry(0.58, 0.96, 0.08),
+        new THREE.MeshStandardMaterial({ color: darkAccent, flatShading: true })
+      );
+      cloak.position.set(0, 1.05, 0.23);
+      cloak.rotation.x = 0.08;
+      group.add(cloak);
+
+      const quiver = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.58, 6), leatherMat);
+      quiver.position.set(-0.16, 1.26, 0.27);
+      quiver.rotation.z = -0.35;
+      group.add(quiver);
+
+      for (let f = 0; f < 3; f++) {
+        const fletch = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.12, 0.02),
+          new THREE.MeshStandardMaterial({ color: 0xf8fafc, flatShading: true })
+        );
+        fletch.position.set(-0.27 + f * 0.03, 1.56, 0.27 + (f - 1) * 0.03);
+        fletch.rotation.z = -0.35;
+        group.add(fletch);
+      }
+
+      // Articulated Arms
+      const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.62, 0.18), tunicMat);
+      leftArm.position.set(-0.42, 1.18, -0.18);
+      leftArm.rotation.x = 0.65;
+      const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.62, 0.18), tunicMat);
+      rightArm.position.set(0.42, 1.18, -0.24);
+      rightArm.rotation.x = 0.85;
+      group.add(leftArm, rightArm);
+
+      // Head + Detailed Ranger Cowl/Hood
       const headGroup = new THREE.Group();
-      headGroup.position.y = 1.75;
+      headGroup.position.y = 1.76;
       const face = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, 0.42, 0.42),
+        new THREE.BoxGeometry(0.36, 0.38, 0.36),
         new THREE.MeshStandardMaterial({ color: 0xfde68a, flatShading: true })
       );
-      const hood = new THREE.Mesh(
-        new THREE.BoxGeometry(0.48, 0.48, 0.48),
-        new THREE.MeshStandardMaterial({ color: primaryColor, flatShading: true })
-      );
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), tunicMat);
       hood.position.set(0, 0.04, 0.04);
-      headGroup.add(face, hood);
+      const hoodPeak = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.28, 4), tunicMat);
+      hoodPeak.position.set(0, 0.14, 0.24);
+      hoodPeak.rotation.x = -0.85;
+      headGroup.add(face, hood, hoodPeak);
       group.add(headGroup);
 
-      // Legs
-      const legMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, flatShading: true });
-      const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.62, 0.28), legMat);
-      leftLeg.position.set(-0.2, 0.31, 0);
-      const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.62, 0.28), legMat);
-      rightLeg.position.set(0.2, 0.31, 0);
-      group.add(leftLeg, rightLeg);
-
-      // Bow Prop held in front
+      // Recurve Bow Prop held in front
       const bow = new THREE.Mesh(
-        new THREE.TorusGeometry(0.42, 0.035, 5, 10, Math.PI * 1.15),
-        new THREE.MeshStandardMaterial({ color: 0x92400e, flatShading: true })
+        new THREE.TorusGeometry(0.44, 0.03, 5, 12, Math.PI * 1.15),
+        leatherMat
       );
-      bow.position.set(0.36, 1.25, -0.42);
+      bow.position.set(0.36, 1.25, -0.46);
       bow.rotation.y = Math.PI / 2;
       bow.rotation.z = -Math.PI * 0.57;
       group.add(bow);
@@ -1410,11 +1611,11 @@
 
       const tex = new THREE.CanvasTexture(canvas);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-      sprite.position.set(0, 2.35, 0);
+      sprite.position.set(0, 2.38, 0);
       sprite.scale.set(2.1, 0.52, 1);
       group.add(sprite);
 
-      return { group, leftLeg, rightLeg, headGroup, bow };
+      return { group, leftLeg, rightLeg, headGroup, bow, cloak };
     }
 
     function createFlagMesh(team) {
@@ -2134,14 +2335,20 @@
             moveDir.addScaledVector(rightVec, bot.strafeDir * 0.72).normalize();
           }
 
-          const speed = bot.cls === 'scout' ? 8.8 : 7.4;
-          bot.vel.x = moveDir.x * speed;
-          bot.vel.z = moveDir.z * speed;
+          // Bots also slow down when aiming/drawing their bow
+          const isAiming = Boolean(nearestEnemy && nearestDist < 34);
+          const baseSpeed = bot.cls === 'scout' ? 6.6 : 5.5;
+          const speed = baseSpeed * (isAiming ? 0.56 : 1.0);
+          const targetVx = moveDir.x * speed;
+          const targetVz = moveDir.z * speed;
+          const accel = Math.min(1, 11.0 * dt);
+          bot.vel.x += (targetVx - bot.vel.x) * accel;
+          bot.vel.z += (targetVz - bot.vel.z) * accel;
           bot.vel.y += GRAVITY * dt;
 
           // Step & Obstacle Resolution
           const prevPos = bot.pos.clone();
-          this.game.moveEntityWithCollisions(bot.pos, bot.vel, 0.45, 1.85, dt, true);
+          this.game.moveEntityWithCollisions(bot.pos, bot.vel, 0.44, 1.85, dt, true);
 
           // Auto-jump if blocked horizontally while pursuing goal
           if (prevPos.distanceTo(bot.pos) < speed * dt * 0.25 && Math.abs(bot.vel.y) < 0.2) {
@@ -2742,35 +2949,46 @@
       moveEntityWithCollisions(pos, vel, radius, height, dt, isBot = false) {
         // Horizontal X
         pos.x += vel.x * dt;
-        for (const box of this.world.colliders) {
-          if (pos.y + height > box.minY + 0.05 && pos.y < box.maxY - 0.05 &&
-              pos.z + radius > box.minZ && pos.z - radius < box.maxZ &&
-              pos.x + radius > box.minX && pos.x - radius < box.maxX) {
-            // Auto-step up low ledges (e.g. ramp steps or 0.55m curbs)
-            const stepHeight = box.maxY - pos.y;
-            if (stepHeight > 0 && stepHeight <= 0.62) {
-              pos.y = box.maxY;
-            } else if (vel.x > 0) {
-              pos.x = box.minX - radius;
-            } else if (vel.x < 0) {
-              pos.x = box.maxX + radius;
+        for (let pass = 0; pass < 2; pass++) {
+          for (const box of this.world.colliders) {
+            if (pos.y + height > box.minY + 0.04 && pos.y < box.maxY - 0.04 &&
+                pos.z + radius > box.minZ && pos.z - radius < box.maxZ &&
+                pos.x + radius > box.minX && pos.x - radius < box.maxX) {
+              const stepHeight = box.maxY - pos.y;
+              if (box.isStep && stepHeight > 0 && stepHeight <= 0.45) {
+                pos.y = box.maxY;
+              } else {
+                const penLeft = (pos.x + radius) - box.minX;
+                const penRight = box.maxX - (pos.x - radius);
+                if (penLeft < penRight) {
+                  pos.x = box.minX - radius;
+                } else {
+                  pos.x = box.maxX + radius;
+                }
+              }
             }
           }
         }
 
         // Horizontal Z
         pos.z += vel.z * dt;
-        for (const box of this.world.colliders) {
-          if (pos.y + height > box.minY + 0.05 && pos.y < box.maxY - 0.05 &&
-              pos.x + radius > box.minX && pos.x - radius < box.maxX &&
-              pos.z + radius > box.minZ && pos.z - radius < box.maxZ) {
-            const stepHeight = box.maxY - pos.y;
-            if (stepHeight > 0 && stepHeight <= 0.62) {
-              pos.y = box.maxY;
-            } else if (vel.z > 0) {
-              pos.z = box.minZ - radius;
-            } else if (vel.z < 0) {
-              pos.z = box.maxZ + radius;
+        for (let pass = 0; pass < 2; pass++) {
+          for (const box of this.world.colliders) {
+            if (pos.y + height > box.minY + 0.04 && pos.y < box.maxY - 0.04 &&
+                pos.x + radius > box.minX && pos.x - radius < box.maxX &&
+                pos.z + radius > box.minZ && pos.z - radius < box.maxZ) {
+              const stepHeight = box.maxY - pos.y;
+              if (box.isStep && stepHeight > 0 && stepHeight <= 0.45) {
+                pos.y = box.maxY;
+              } else {
+                const penFront = (pos.z + radius) - box.minZ;
+                const penBack = box.maxZ - (pos.z - radius);
+                if (penFront < penBack) {
+                  pos.z = box.minZ - radius;
+                } else {
+                  pos.z = box.maxZ + radius;
+                }
+              }
             }
           }
         }
@@ -3007,13 +3225,13 @@
           const step = a.vel.clone().multiplyScalar(dt);
           const nextPos = a.pos.clone().add(step);
 
-          // Rotate arrow mesh to align with velocity vector
+          // Rotate arrow to align with velocity vector
           if (a.vel.lengthSq() > 0.01) {
-            const lookTarget = a.pos.clone().add(a.vel);
+            const lookTarget = nextPos.clone().add(a.vel);
             a.mesh.lookAt(lookTarget);
           }
 
-          // Check Combatant Hitboxes (Host-authoritative)
+          // Check Combatant Hitboxes (Accurate multi-zone head / torso / leg cylinders)
           let hitEntity = null;
           let isHeadshot = false;
 
@@ -3025,9 +3243,17 @@
               const horizDist = Math.hypot(dx, dz);
               const relY = nextPos.y - target.pos.y;
 
-              if (horizDist < 0.56 && relY >= 0 && relY <= 1.98) {
+              if (relY >= 1.54 && relY <= 1.96 && horizDist <= 0.25) {
                 hitEntity = target;
-                isHeadshot = relY >= 1.48;
+                isHeadshot = true;
+                break;
+              } else if (relY >= 0.72 && relY < 1.54 && horizDist <= 0.38) {
+                hitEntity = target;
+                isHeadshot = false;
+                break;
+              } else if (relY >= 0.0 && relY < 0.72 && horizDist <= 0.28) {
+                hitEntity = target;
+                isHeadshot = false;
                 break;
               }
             }
@@ -3092,7 +3318,7 @@
           }
 
           a.pos.copy(nextPos);
-          a.mesh.position.copy(a.pos);
+          a.mesh.position.copy(nextPos);
         }
       }
 
@@ -3106,8 +3332,9 @@
 
         const clsCfg = CLASSES[this.localClass];
 
-        // 1. Local Player Movement & Bow Draw State
+        // 1. Local Player Movement & Bow Draw State (with realistic inertia & draw slowdown)
         if (this.playerAlive) {
+          const drawCharge = this.controls.charge;
           if (this.controls.isEngaged && !this.matchOver) {
             const { strafe, forward } = this.controls.getMovementInput();
             const fwdVec = new THREE.Vector3(-Math.sin(this.controls.yaw), 0, -Math.cos(this.controls.yaw));
@@ -3118,19 +3345,34 @@
               .addScaledVector(rightVec, strafe);
             if (wishDir.lengthSq() > 1) wishDir.normalize();
 
-            const moveMult = this.controls.isDrawing ? 0.76 : 1.0;
-            this.playerVel.x = wishDir.x * clsCfg.moveSpeed * moveMult;
-            this.playerVel.z = wishDir.z * clsCfg.moveSpeed * moveMult;
+            // Slower movement when an arrow is nocked & drawn (scales smoothly with draw tension)
+            const drawSlowMult = this.controls.isDrawing ? (0.58 - drawCharge * 0.16) : 1.0;
+            const targetVx = wishDir.x * clsCfg.moveSpeed * drawSlowMult;
+            const targetVz = wishDir.z * clsCfg.moveSpeed * drawSlowMult;
+            const accelRate = this.playerGrounded ? 13.0 : 4.2;
+            const blend = Math.min(1, accelRate * dt);
+            this.playerVel.x += (targetVx - this.playerVel.x) * blend;
+            this.playerVel.z += (targetVz - this.playerVel.z) * blend;
           } else {
-            this.playerVel.x *= 0.85;
-            this.playerVel.z *= 0.85;
+            const friction = Math.min(1, (this.playerGrounded ? 10.0 : 2.5) * dt);
+            this.playerVel.x *= (1 - friction);
+            this.playerVel.z *= (1 - friction);
           }
 
           this.playerVel.y += GRAVITY * dt;
-          this.moveEntityWithCollisions(this.playerPos, this.playerVel, 0.45, 1.85, dt, false);
+          this.moveEntityWithCollisions(this.playerPos, this.playerVel, 0.44, 1.85, dt, false);
 
-          // Position Eye Camera
-          this.camera.position.set(this.playerPos.x, this.playerPos.y + 1.62, this.playerPos.z);
+          // Position Eye Camera with subtle natural footsteps head-bob
+          const horizSpeed = Math.hypot(this.playerVel.x, this.playerVel.z);
+          if (this.playerGrounded && horizSpeed > 0.4) {
+            this.walkBobTime = (this.walkBobTime || 0) + dt * horizSpeed * 1.45;
+          } else {
+            this.walkBobTime = 0;
+          }
+          const bobOffset = (this.playerGrounded && horizSpeed > 0.4)
+            ? Math.sin(this.walkBobTime) * 0.045
+            : 0;
+          this.camera.position.set(this.playerPos.x, this.playerPos.y + 1.62 + bobOffset, this.playerPos.z);
 
           // Update Bow Charge & Visual Pullback
           if (this.controls.isDrawing) {

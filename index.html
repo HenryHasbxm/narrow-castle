@@ -965,15 +965,24 @@
           </div>
         </div>
 
-        <div>
-          <label class="field-label">Archer Class</label>
-          <div class="seg-group two-col" id="class-selector">
-            <div class="seg-btn active" data-class="scout">⚡ SCOUT</div>
-            <div class="seg-btn" data-class="marksman">🎯 MARKSMAN</div>
+        <div class="lobby-row" style="margin-bottom: 0;">
+          <div>
+            <label class="field-label">Battlefield Map</label>
+            <div class="seg-group two-col" id="map-selector">
+              <div class="seg-btn active" data-map="citadel">🏰 CITADEL</div>
+              <div class="seg-btn" data-map="towers">🗼 TOWERS</div>
+            </div>
           </div>
-          <div class="class-desc" id="class-desc">
-            <strong>Scout:</strong> +22% movement speed &amp; rapid bow draw (0.62s full charge).
+          <div>
+            <label class="field-label">Archer Class</label>
+            <div class="seg-group two-col" id="class-selector">
+              <div class="seg-btn active" data-class="scout">⚡ SCOUT</div>
+              <div class="seg-btn" data-class="marksman">🎯 MARKSMAN</div>
+            </div>
           </div>
+        </div>
+        <div class="class-desc" id="class-desc">
+          <strong>Scout:</strong> Agile movement speed &amp; rapid bow draw (0.62s full charge).
         </div>
       </div>
 
@@ -1005,45 +1014,42 @@
     import { joinRoom } from 'https://esm.sh/trystero@0.19.0/torrent';
 
     // =========================================================================
-    // CONSTANTS & CLASS DEFINITIONS
+    // MODULE 1: GAME CONSTANTS, CLASSES & PROCEDURAL WEB AUDIO ENGINE
     // =========================================================================
-    const GRAVITY = -23.0;
-    const ARROW_GRAVITY = -16.5;
+    const APP_ID = 'narrow-castle-ctf-v2';
+    const TEAM_TARGET_SIZE = 4;
     const WIN_SCORE = 3;
-    const TEAM_TARGET_SIZE = 4; // 4v4 = 8 total combatants
-    const APP_ID = 'narrow-castle-ctf-v1';
+    const GRAVITY = -22.0;
+    const ARROW_GRAVITY = -15.5;
 
     const CLASSES = {
       scout: {
         label: 'Scout',
+        desc: 'Scout: Agile movement speed & rapid bow draw (0.62s full charge).',
         moveSpeed: 9.2,
         drawTime: 0.62,
         minSpeed: 24,
         maxSpeed: 64,
-        zoomFov: 64,
-        maxHp: 95,
-        desc: 'Scout: Agile movement speed & rapid bow draw (0.62s full charge).'
+        zoomFov: 56,
+        maxHp: 100
       },
       marksman: {
         label: 'Marksman',
+        desc: 'Marksman: High arrow velocity, flatter trajectory & deeper zoom.',
         moveSpeed: 7.4,
         drawTime: 0.92,
         minSpeed: 28,
         maxSpeed: 82,
-        zoomFov: 48,
-        maxHp: 105,
-        desc: 'Marksman: High arrow velocity, flatter trajectory & deep RMB zoom.'
+        zoomFov: 42,
+        maxHp: 100
       }
     };
 
     const BOT_NAMES = [
-      'Alistair', 'Rowan', 'Garrick', 'Lyra',
-      'Cedric', 'Isolde', 'Thorne', 'Vesper'
+      'Alden', 'Rowan', 'Garrick', 'Lyra',
+      'Theron', 'Sylvi', 'Cedric', 'Mirelle'
     ];
 
-    // =========================================================================
-    // MODULE 1: PROCEDURAL WEB AUDIO SYNTHESIZER
-    // =========================================================================
     class AudioEngine {
       constructor() {
         this.ctx = null;
@@ -1065,30 +1071,30 @@
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(115, now);
+        osc.frequency.setValueAtTime(130, now);
         osc.frequency.exponentialRampToValueAtTime(215, now + 0.35);
         gain.gain.setValueAtTime(0.06, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.39);
+        osc.stop(now + 0.4);
       }
 
-      playShoot(power = 1) {
+      playShoot(power = 0.8) {
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(320 + power * 240, now);
-        osc.frequency.exponentialRampToValueAtTime(90, now + 0.14);
-        gain.gain.setValueAtTime(0.14 * Math.max(0.4, power), now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280 + power * 240, now);
+        osc.frequency.exponentialRampToValueAtTime(75, now + 0.16);
+        gain.gain.setValueAtTime(0.14 * Math.max(0.35, power), now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.16);
+        osc.stop(now + 0.18);
       }
 
       playHitmarker(headshot = false) {
@@ -1096,33 +1102,15 @@
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = headshot ? 'square' : 'triangle';
-        osc.frequency.setValueAtTime(headshot ? 1180 : 760, now);
-        osc.frequency.exponentialRampToValueAtTime(headshot ? 1680 : 520, now + 0.08);
-        gain.gain.setValueAtTime(0.16, now);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(headshot ? 1320 : 880, now);
+        osc.frequency.exponentialRampToValueAtTime(headshot ? 1760 : 620, now + 0.08);
+        gain.gain.setValueAtTime(0.18, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.1);
-      }
-
-      playFlagEvent(isScore = false) {
-        if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const notes = isScore ? [523.25, 659.25, 783.99, 1046.5] : [440, 587.33];
-        notes.forEach((freq, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, now + idx * 0.09);
-          gain.gain.setValueAtTime(0.13, now + idx * 0.09);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.28);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now + idx * 0.09);
-          osc.stop(now + idx * 0.09 + 0.3);
-        });
+        osc.stop(now + 0.095);
       }
 
       playJump() {
@@ -1132,22 +1120,42 @@
         const gain = this.ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(140, now);
-        osc.frequency.exponentialRampToValueAtTime(260, now + 0.11);
+        osc.frequency.exponentialRampToValueAtTime(240, now + 0.1);
         gain.gain.setValueAtTime(0.07, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.13);
+        osc.stop(now + 0.12);
+      }
+
+      playFlagEvent(isScore = false) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = isScore ? [523.25, 659.25, 783.99, 1046.5] : [440, 554.37];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          const t = now + idx * 0.09;
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.24);
+        });
       }
     }
 
     // =========================================================================
-    // MODULE 2: LOW-POLY MEDIEVAL CASTLE ARENA & COLLISION WORLD
+    // MODULE 2: LOW-POLY MEDIEVAL CASTLE ARENAS & COLLISION WORLD
     // =========================================================================
     class CastleWorld {
-      constructor(scene) {
+      constructor(scene, mapId = 'citadel') {
         this.scene = scene;
+        this.mapId = mapId;
         this.colliders = [];
         this.staticMeshes = [];
         this.pedestals = {
@@ -1169,6 +1177,21 @@
           ]
         };
 
+        this.buildEnvironment();
+      }
+
+      clearEnvironment() {
+        for (const m of this.staticMeshes) {
+          this.scene.remove(m);
+        }
+        this.staticMeshes = [];
+        this.colliders = [];
+      }
+
+      setMap(mapId) {
+        if (this.mapId === mapId && this.staticMeshes.length > 0) return;
+        this.mapId = mapId;
+        this.clearEnvironment();
         this.buildEnvironment();
       }
 
@@ -1253,64 +1276,62 @@
         );
         flame.position.set(x, y + 1.28, z);
         flame.scale.set(0.85, 1.35, 0.85);
-        this.scene.add(flame);
+        this.addDecorMesh(flame);
+      }
+
+      addRubblePile(x, z, scale = 1.0, stoneColor = 0x64748b) {
+        const darkStone = 0x475569;
+        const earthColor = 0x57534e;
+        // Main solid core block
+        this.addBox(x, 0.65 * scale, z, 2.8 * scale, 1.3 * scale, 2.2 * scale, stoneColor);
+        // Broken masonry blocks & tilted slab
+        this.addBox(x - 1.1 * scale, 0.42 * scale, z + 0.6 * scale, 1.4 * scale, 0.84 * scale, 1.3 * scale, darkStone, true, true, true);
+        this.addBox(x + 1.15 * scale, 0.35 * scale, z - 0.5 * scale, 1.3 * scale, 0.7 * scale, 1.4 * scale, earthColor, true, true, true);
+
+        const slab = new THREE.Mesh(
+          new THREE.BoxGeometry(1.9 * scale, 0.32 * scale, 1.4 * scale),
+          new THREE.MeshStandardMaterial({ color: 0x94a3b8, flatShading: true, roughness: 0.9 })
+        );
+        slab.position.set(x + 0.2 * scale, 1.28 * scale, z + 0.15 * scale);
+        slab.rotation.set(0.24, 0.35, -0.28);
+        this.addDecorMesh(slab);
+
+        const pillarStub = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.38 * scale, 0.46 * scale, 1.5 * scale, 6),
+          new THREE.MeshStandardMaterial({ color: darkStone, flatShading: true })
+        );
+        pillarStub.position.set(x - 0.55 * scale, 1.1 * scale, z - 0.45 * scale);
+        pillarStub.rotation.z = 0.22;
+        this.addDecorMesh(pillarStub);
       }
 
       addRamp(x, yBottom, z, w, h, d, axis, dir, color = 0x8b5a2b) {
-        // Build visual sloped ramp with side stringer rails + step-friendly collider
-        const shape = new THREE.Shape();
-        if (axis === 'z') {
-          if (dir > 0) {
-            shape.moveTo(-d / 2, 0);
-            shape.lineTo(d / 2, h);
-            shape.lineTo(d / 2, 0);
-          } else {
-            shape.moveTo(-d / 2, h);
-            shape.lineTo(d / 2, 0);
-            shape.lineTo(-d / 2, 0);
-          }
-          shape.closePath();
-          const extrude = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
-          extrude.rotateY(Math.PI / 2);
-          extrude.translate(-w / 2, yBottom, 0);
-          const mat = new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.9 });
-          const mesh = new THREE.Mesh(extrude, mat);
-          mesh.position.set(x, 0, z);
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          this.scene.add(mesh);
-          this.staticMeshes.push(mesh);
+        // Build solid brown wooden stairs with 1:1 visual and physical step colliders (no pass-through 3D triangles)
+        const steps = 16;
+        const stepDepth = d / steps;
+        const stepRise = h / steps;
 
-          // Decorative wooden side trim beams
-          [-w / 2 + 0.15, w / 2 - 0.15].forEach((sideX) => {
-            const beamLen = Math.hypot(d, h);
-            const beam = new THREE.Mesh(
-              new THREE.BoxGeometry(0.24, 0.34, beamLen),
-              new THREE.MeshStandardMaterial({ color: 0x5c3a21, flatShading: true })
-            );
-            beam.position.set(x + sideX, yBottom + h / 2 + 0.12, z);
-            beam.rotation.x = dir > 0 ? -Math.atan2(h, d) : Math.atan2(h, d);
-            this.addDecorMesh(beam);
-          });
-        }
-
-        // Subdivide ramp into 12 smooth stair steps for realistic walking/AI navigation
-        const steps = 12;
         for (let i = 0; i < steps; i++) {
-          const t = (i + 1) / steps;
-          const stepH = h * t;
-          const stepD = d / steps;
-          const offset = -d / 2 + stepD * (i + 0.5);
+          const stepH = stepRise * (i + 1);
+          const offset = -d / 2 + stepDepth * (i + 0.5);
           const zPos = axis === 'z' ? z + (dir > 0 ? offset : -offset) : z;
-          this.colliders.push({
-            minX: x - w / 2,
-            maxX: x + w / 2,
-            minY: yBottom,
-            maxY: yBottom + stepH,
-            minZ: zPos - stepD / 2,
-            maxZ: zPos + stepD / 2,
-            isStep: true
-          });
+          const xPos = axis === 'x' ? x + (dir > 0 ? offset : -offset) : x;
+          const stepW = axis === 'z' ? w : stepDepth * 1.05;
+          const stepD = axis === 'z' ? stepDepth * 1.05 : d;
+          const stepColor = i % 2 === 0 ? color : 0x78350f;
+
+          this.addBox(
+            xPos,
+            yBottom + stepH / 2,
+            zPos,
+            stepW,
+            stepH,
+            stepD,
+            stepColor,
+            true,
+            true,
+            true
+          );
         }
       }
 
@@ -1338,13 +1359,7 @@
         sun.shadow.bias = -0.0005;
         this.scene.add(sun);
 
-        // Grass Courtyard Floor + Stone Flagstone Center Courtyard + Trimmed Stone Border
-        this.addBox(0, -1, 0, 68, 2, 112, 0x4d7c0f, false, true);
-        this.addBox(0, -0.46, 0, 26, 1, 96, 0x94a3b8, false, true);
-        this.addBox(-13.4, -0.42, 0, 0.8, 1, 96, 0x64748b, false, true);
-        this.addBox(13.4, -0.42, 0, 0.8, 1, 96, 0x64748b, false, true);
-
-        // Perimeter Castle Walls with Crenellations (Merlons) & Buttresses
+        // Outer Fortress Perimeter Walls & Watchtowers (Shared across arenas)
         const wallColor = 0x64748b;
         const trimColor = 0x475569;
         const lightStone = 0x94a3b8;
@@ -1353,7 +1368,6 @@
         this.addBox(0, 5, 55, 68, 10, 2.2, wallColor);
         this.addBox(0, 5, -55, 68, 10, 2.2, wallColor);
 
-        // Wall Merlons & Stone Buttresses for realistic fortress depth
         for (let z = -48; z <= 48; z += 8) {
           [-31.6, 31.6].forEach((bx) => {
             const buttress = new THREE.Mesh(
@@ -1383,11 +1397,9 @@
           });
         }
 
-        // Four Corner Watchtowers with Cornices, Battlements & Spires
         const towerCoords = [[-31, 53], [31, 53], [-31, -53], [31, -53]];
         towerCoords.forEach(([tx, tz]) => {
           this.addBox(tx, 7.5, tz, 7.2, 15, 7.2, trimColor);
-          // Stone Tower Crown Collar
           const crown = new THREE.Mesh(
             new THREE.BoxGeometry(8.2, 1.2, 8.2),
             new THREE.MeshStandardMaterial({ color: lightStone, flatShading: true })
@@ -1406,13 +1418,43 @@
           this.addDecorMesh(roof);
         });
 
-        // Central Stone Overpass Bridge (Elevated sniper lane with stone arches & battlements)
+        if (this.mapId === 'towers') {
+          this.buildTowersArena(trimColor, lightStone);
+        } else {
+          this.buildCitadelArena(trimColor);
+        }
+      }
+
+      buildCitadelArena(trimColor) {
+        this.pedestals.blue.set(0, 0.4, 42);
+        this.pedestals.red.set(0, 0.4, -42);
+        this.spawnPoints = {
+          blue: [
+            new THREE.Vector3(-6, 0.5, 45),
+            new THREE.Vector3(6, 0.5, 45),
+            new THREE.Vector3(-12, 0.5, 40),
+            new THREE.Vector3(12, 0.5, 40)
+          ],
+          red: [
+            new THREE.Vector3(-6, 0.5, -45),
+            new THREE.Vector3(6, 0.5, -45),
+            new THREE.Vector3(-12, 0.5, -40),
+            new THREE.Vector3(12, 0.5, -40)
+          ]
+        };
+
+        // Grass Courtyard Floor + Stone Flagstone Center Courtyard
+        this.addBox(0, -1, 0, 68, 2, 112, 0x4d7c0f, false, true);
+        this.addBox(0, -0.46, 0, 26, 1, 96, 0x94a3b8, false, true);
+        this.addBox(-13.4, -0.42, 0, 0.8, 1, 96, 0x64748b, false, true);
+        this.addBox(13.4, -0.42, 0, 0.8, 1, 96, 0x64748b, false, true);
+
+        // Central Stone Overpass Bridge
         this.addBox(0, 3.6, 0, 24, 0.8, 10, 0x78716c);
         this.addBox(-10, 1.8, -3.5, 2.2, 3.6, 2.2, trimColor);
         this.addBox(10, 1.8, -3.5, 2.2, 3.6, 2.2, trimColor);
         this.addBox(-10, 1.8, 3.5, 2.2, 3.6, 2.2, trimColor);
         this.addBox(10, 1.8, 3.5, 2.2, 3.6, 2.2, trimColor);
-        // Bridge Low Battlement Cover
         this.addBox(-5.5, 4.6, 4.6, 7, 1.2, 0.7, trimColor);
         this.addBox(5.5, 4.6, 4.6, 7, 1.2, 0.7, trimColor);
         this.addBox(-5.5, 4.6, -4.6, 7, 1.2, 0.7, trimColor);
@@ -1425,7 +1467,7 @@
           this.addRamp(sx, 0, -14, 6.6, 3.6, 12, 'z', 1, 0x92400e);
         });
 
-        // Tactical Mid-Field Archery Cover Pillars, Wooden Barricades & Crates
+        // Tactical Mid-Field Archery Cover
         const coverBlocks = [
           [-7, 1.3, 18, 3.2, 2.6, 1.4, trimColor],
           [7, 1.3, 18, 3.2, 2.6, 1.4, trimColor],
@@ -1440,7 +1482,6 @@
         ];
         coverBlocks.forEach((b) => this.addBox(...b));
 
-        // Courtyard Cypress/Pine Trees & Lit Braziers for Atmospheric Realism
         const treeSpots = [
           [-26, 12, 1.1], [26, 12, 1.05], [-26, -12, 1.05], [26, -12, 1.1],
           [-27, 41, 0.95], [27, 41, 1.0], [-27, -41, 1.0], [27, -41, 0.95]
@@ -1452,9 +1493,106 @@
         this.addBrazier(-6.2, 0.4, -37);
         this.addBrazier(6.2, 0.4, -37);
 
-        // Symmetrical Blue (+Z) and Red (-Z) Base Platforms & Pedestals
         this.buildBase('blue', 42, 0x2563eb);
         this.buildBase('red', -42, 0xdc2626);
+      }
+
+      buildTowersArena(trimColor, lightStone) {
+        // Elevated Flag Keep Towers (y = 3.8) at both ends + Scarred No-Man's-Land Rubble Battlefield
+        this.pedestals.blue.set(0, 4.2, 41);
+        this.pedestals.red.set(0, 4.2, -41);
+        this.spawnPoints = {
+          blue: [
+            new THREE.Vector3(-8, 0.5, 47),
+            new THREE.Vector3(8, 0.5, 47),
+            new THREE.Vector3(-5, 4.3, 43),
+            new THREE.Vector3(5, 4.3, 43)
+          ],
+          red: [
+            new THREE.Vector3(-8, 0.5, -47),
+            new THREE.Vector3(8, 0.5, -47),
+            new THREE.Vector3(-5, 4.3, -43),
+            new THREE.Vector3(5, 4.3, -43)
+          ]
+        };
+
+        // Scorched Earth / Muddy No-Man's-Land Ground + Cracked Stone Causeway
+        this.addBox(0, -1, 0, 68, 2, 112, 0x57534e, false, true);
+        this.addBox(0, -0.46, 0, 18, 1, 70, 0x78716c, false, true);
+
+        // Build Blue (+Z) and Red (-Z) Flag Keep Towers
+        this.buildFlagKeepTower('blue', 41, 0x2563eb, trimColor, lightStone);
+        this.buildFlagKeepTower('red', -41, 0xdc2626, trimColor, lightStone);
+
+        // No-Man's-Land Rubble Piles, Shattered Ruin Walls & Wooden Trench Barricades
+        const rubbleCoords = [
+          [0, 0, 1.35],
+          [-10.5, 7, 1.15],
+          [10.5, -7, 1.15],
+          [-11.5, -13, 1.1],
+          [11.5, 13, 1.1],
+          [-21, 3, 1.25],
+          [21, -3, 1.25],
+          [-6.5, 21, 1.0],
+          [6.5, -21, 1.0],
+          [-18, -22, 1.05],
+          [18, 22, 1.05]
+        ];
+        rubbleCoords.forEach(([rx, rz, sc]) => this.addRubblePile(rx, rz, sc));
+
+        // Shattered Stone Ruin Archways & Trench Timber Cover in No-Man's-Land
+        this.addBox(-5.5, 1.6, -4, 1.4, 3.2, 4.2, trimColor);
+        this.addBox(5.5, 1.6, 4, 1.4, 3.2, 4.2, trimColor);
+        this.addBox(0, 1.05, 13, 5.2, 2.1, 1.1, 0x78350f);
+        this.addBox(0, 1.05, -13, 5.2, 2.1, 1.1, 0x78350f);
+        this.addBox(-16, 1.15, 0, 3.8, 2.3, 1.2, 0x78350f);
+        this.addBox(16, 1.15, 0, 3.8, 2.3, 1.2, 0x78350f);
+
+        // Braziers lighting the Tower Approaches
+        this.addBrazier(-8.2, 0, 27);
+        this.addBrazier(8.2, 0, 27);
+        this.addBrazier(-8.2, 0, -27);
+        this.addBrazier(8.2, 0, -27);
+      }
+
+      buildFlagKeepTower(team, zCenter, bannerColor, trimColor, lightStone) {
+        const dirToMid = zCenter > 0 ? -1 : 1;
+        // Elevated Tower Deck (top at y = 3.8)
+        this.addBox(0, 1.9, zCenter, 16, 3.8, 12, trimColor);
+        // Flag Pedestal Altar on Top of the Tower
+        this.addBox(0, 4.05, zCenter, 2.8, 0.5, 2.8, bannerColor, true, true, true);
+
+        // Dual Flanking Wooden Stair Ramps leading up from the courtyard to the Tower Deck
+        const rampZ = zCenter + dirToMid * 12;
+        this.addRamp(-5.2, 0, rampZ, 4.2, 3.8, 12, 'z', -dirToMid, 0x92400e);
+        this.addRamp(5.2, 0, rampZ, 4.2, 3.8, 12, 'z', -dirToMid, 0x92400e);
+
+        // Crenellated Battlements around the Tower Top (leaving stair openings clear)
+        const frontZ = zCenter + dirToMid * 5.6;
+        const backZ = zCenter - dirToMid * 5.6;
+        this.addBox(0, 4.45, frontZ, 5.2, 1.3, 0.8, lightStone);
+        this.addBox(-7.6, 4.45, zCenter, 0.8, 1.3, 12, lightStone);
+        this.addBox(7.6, 4.45, zCenter, 0.8, 1.3, 12, lightStone);
+        this.addBox(0, 4.45, backZ, 16, 1.3, 0.8, lightStone);
+
+        // Twin Rear Keep Turrets & Hanging Team Tapestries
+        [-6.6, 6.6].forEach((tx) => {
+          this.addBox(tx, 6.2, backZ, 2.6, 5.4, 2.6, trimColor);
+          const cap = new THREE.Mesh(
+            new THREE.ConeGeometry(2.1, 2.8, 4),
+            new THREE.MeshStandardMaterial({ color: bannerColor, flatShading: true })
+          );
+          cap.position.set(tx, 10.2, backZ);
+          cap.rotation.y = Math.PI / 4;
+          this.addDecorMesh(cap);
+
+          const banner = new THREE.Mesh(
+            new THREE.BoxGeometry(1.4, 3.4, 0.12),
+            new THREE.MeshStandardMaterial({ color: bannerColor, flatShading: true })
+          );
+          banner.position.set(tx, 6.2, backZ + dirToMid * 1.38);
+          this.addDecorMesh(banner);
+        });
       }
 
       buildBase(team, zCenter, bannerColor) {
@@ -1491,63 +1629,76 @@
       const armorMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, flatShading: true, metalness: 0.45, roughness: 0.4 });
       const tunicMat = new THREE.MeshStandardMaterial({ color: primaryColor, flatShading: true, roughness: 0.8 });
 
-      // Articulated Legs with Leather Boots & Tunic Skirt
+      // Articulated Legs with Knee Guards & Leather Boots
       const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, flatShading: true });
       const leftLeg = new THREE.Group();
-      leftLeg.position.set(-0.18, 0.72, 0);
-      const lThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.46, 0.24), pantsMat);
-      lThigh.position.y = -0.22;
-      const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.30), leatherMat);
-      lBoot.position.set(0, -0.58, -0.03);
-      leftLeg.add(lThigh, lBoot);
+      leftLeg.position.set(-0.17, 0.74, 0);
+      const lThigh = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.44, 0.22), pantsMat);
+      lThigh.position.y = -0.20;
+      const lKnee = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.25), armorMat);
+      lKnee.position.set(0, -0.38, -0.02);
+      const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.30), leatherMat);
+      lBoot.position.set(0, -0.58, -0.04);
+      leftLeg.add(lThigh, lKnee, lBoot);
 
       const rightLeg = new THREE.Group();
-      rightLeg.position.set(0.18, 0.72, 0);
-      const rThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.46, 0.24), pantsMat);
-      rThigh.position.y = -0.22;
-      const rBoot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.30), leatherMat);
-      rBoot.position.set(0, -0.58, -0.03);
-      rightLeg.add(rThigh, rBoot);
+      rightLeg.position.set(0.17, 0.74, 0);
+      const rThigh = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.44, 0.22), pantsMat);
+      rThigh.position.y = -0.20;
+      const rKnee = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.25), armorMat);
+      rKnee.position.set(0, -0.38, -0.02);
+      const rBoot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.30), leatherMat);
+      rBoot.position.set(0, -0.58, -0.04);
+      rightLeg.add(rThigh, rKnee, rBoot);
       group.add(leftLeg, rightLeg);
 
-      // Sculpted Torso with Chestplate, Leather Belt & Flowing Cloak
-      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.86, 0.38), tunicMat);
-      torso.position.y = 1.12;
+      // Sculpted Torso with Surcoat Skirt, Brigandine Chestplate & Cross-Chest Quiver Strap
+      const surcoat = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.34, 0.38), tunicMat);
+      surcoat.position.set(0, 0.68, 0);
+      group.add(surcoat);
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.82, 0.36), tunicMat);
+      torso.position.y = 1.14;
       torso.castShadow = true;
       group.add(torso);
 
-      const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.52, 0.42), armorMat);
-      chestPlate.position.set(0, 1.24, 0);
+      const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.50, 0.40), armorMat);
+      chestPlate.position.set(0, 1.25, 0);
       group.add(chestPlate);
 
-      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.12, 0.43), leatherMat);
-      belt.position.set(0, 0.76, 0);
+      const chestStrap = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.72, 0.43), leatherMat);
+      chestStrap.position.set(0, 1.18, 0);
+      chestStrap.rotation.z = -0.58;
+      group.add(chestStrap);
+
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.12, 0.42), leatherMat);
+      belt.position.set(0, 0.78, 0);
       const buckle = new THREE.Mesh(
-        new THREE.BoxGeometry(0.14, 0.14, 0.45),
+        new THREE.BoxGeometry(0.14, 0.14, 0.44),
         new THREE.MeshStandardMaterial({ color: 0xfacc15, flatShading: true, metalness: 0.6 })
       );
-      buckle.position.set(0, 0.76, 0);
+      buckle.position.set(0, 0.78, 0);
       group.add(belt, buckle);
 
-      // Shoulder Pauldrons
-      [-0.4, 0.4].forEach((sx) => {
+      // Layered Shoulder Pauldrons
+      [-0.39, 0.39].forEach((sx) => {
         const pauldron = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.36), armorMat);
         pauldron.position.set(sx, 1.46, 0);
-        pauldron.rotation.z = sx < 0 ? 0.22 : -0.22;
+        pauldron.rotation.z = sx < 0 ? 0.24 : -0.24;
         group.add(pauldron);
       });
 
-      // Back Cloak & Leather Quiver with Feathered Arrows
+      // Flowing Ranger Cloak & Leather Quiver with Feathered Arrows
       const cloak = new THREE.Mesh(
-        new THREE.BoxGeometry(0.58, 0.96, 0.08),
+        new THREE.BoxGeometry(0.56, 0.98, 0.08),
         new THREE.MeshStandardMaterial({ color: darkAccent, flatShading: true })
       );
-      cloak.position.set(0, 1.05, 0.23);
-      cloak.rotation.x = 0.08;
+      cloak.position.set(0, 1.04, 0.22);
+      cloak.rotation.x = 0.09;
       group.add(cloak);
 
       const quiver = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.58, 6), leatherMat);
-      quiver.position.set(-0.16, 1.26, 0.27);
+      quiver.position.set(-0.16, 1.26, 0.26);
       quiver.rotation.z = -0.35;
       group.add(quiver);
 
@@ -1556,43 +1707,68 @@
           new THREE.BoxGeometry(0.08, 0.12, 0.02),
           new THREE.MeshStandardMaterial({ color: 0xf8fafc, flatShading: true })
         );
-        fletch.position.set(-0.27 + f * 0.03, 1.56, 0.27 + (f - 1) * 0.03);
+        fletch.position.set(-0.27 + f * 0.03, 1.56, 0.26 + (f - 1) * 0.03);
         fletch.rotation.z = -0.35;
         group.add(fletch);
       }
 
-      // Articulated Arms
-      const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.62, 0.18), tunicMat);
-      leftArm.position.set(-0.42, 1.18, -0.18);
-      leftArm.rotation.x = 0.65;
-      const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.62, 0.18), tunicMat);
-      rightArm.position.set(0.42, 1.18, -0.24);
-      rightArm.rotation.x = 0.85;
+      // Articulated Arms with Leather Bracers
+      const leftArm = new THREE.Group();
+      leftArm.position.set(-0.40, 1.38, -0.05);
+      const lSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.36, 0.17), tunicMat);
+      lSleeve.position.y = -0.18;
+      const lBracer = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.26, 0.16), leatherMat);
+      lBracer.position.y = -0.44;
+      leftArm.add(lSleeve, lBracer);
+      leftArm.rotation.x = 0.85;
+      leftArm.rotation.z = -0.18;
+
+      const rightArm = new THREE.Group();
+      rightArm.position.set(0.40, 1.38, -0.05);
+      const rSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.36, 0.17), tunicMat);
+      rSleeve.position.y = -0.18;
+      const rBracer = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.26, 0.16), leatherMat);
+      rBracer.position.y = -0.44;
+      rightArm.add(rSleeve, rBracer);
+      rightArm.rotation.x = 1.05;
+      rightArm.rotation.z = 0.14;
       group.add(leftArm, rightArm);
 
       // Head + Detailed Ranger Cowl/Hood
       const headGroup = new THREE.Group();
       headGroup.position.y = 1.76;
       const face = new THREE.Mesh(
-        new THREE.BoxGeometry(0.36, 0.38, 0.36),
+        new THREE.BoxGeometry(0.34, 0.36, 0.34),
         new THREE.MeshStandardMaterial({ color: 0xfde68a, flatShading: true })
       );
-      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), tunicMat);
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.43, 0.43, 0.43), tunicMat);
       hood.position.set(0, 0.04, 0.04);
-      const hoodPeak = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.28, 4), tunicMat);
-      hoodPeak.position.set(0, 0.14, 0.24);
+      const hoodPeak = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.30, 4), tunicMat);
+      hoodPeak.position.set(0, 0.14, 0.25);
       hoodPeak.rotation.x = -0.85;
       headGroup.add(face, hood, hoodPeak);
       group.add(headGroup);
 
-      // Recurve Bow Prop held in front
-      const bow = new THREE.Mesh(
-        new THREE.TorusGeometry(0.44, 0.03, 5, 12, Math.PI * 1.15),
+      // Detailed Recurve Bow + Bowstring held in aiming stance
+      const bow = new THREE.Group();
+      bow.position.set(0.22, 1.32, -0.52);
+      const bowLimbs = new THREE.Mesh(
+        new THREE.TorusGeometry(0.46, 0.026, 5, 14, Math.PI * 1.15),
         leatherMat
       );
-      bow.position.set(0.36, 1.25, -0.46);
-      bow.rotation.y = Math.PI / 2;
-      bow.rotation.z = -Math.PI * 0.57;
+      bowLimbs.rotation.y = Math.PI / 2;
+      bowLimbs.rotation.z = -Math.PI * 0.575;
+      const bowGrip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.14, 0.05),
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, flatShading: true })
+      );
+      bowGrip.position.z = -0.45;
+      const bowString = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.006, 0.006, 0.86, 4),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, flatShading: true })
+      );
+      bowString.position.z = -0.08;
+      bow.add(bowLimbs, bowGrip, bowString);
       group.add(bow);
 
       // Floating Nameplate Sprite
@@ -2426,6 +2602,7 @@
         // Local Player Profile & State
         this.localName = 'Ranger_' + Math.floor(100 + Math.random() * 899);
         this.selectedTeamPref = 'auto';
+        this.selectedMap = 'citadel';
         this.localTeam = 'blue';
         this.localClass = 'scout';
         this.playerPos = new THREE.Vector3(0, 0.5, 44);
@@ -2517,39 +2694,61 @@
 
       buildFirstPersonBow() {
         this.bowGroup = new THREE.Group();
-        this.bowGroup.position.set(0.32, -0.26, -0.52);
-        this.bowGroup.rotation.z = -0.18;
+        this.bowGroup.position.set(0.32, -0.25, -0.50);
+        this.bowGroup.rotation.z = -0.16;
 
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x92400e, flatShading: true });
-        const gripMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, flatShading: true });
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, flatShading: true, roughness: 0.7 });
+        const hornTipMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, flatShading: true });
+        const gripMat = new THREE.MeshStandardMaterial({ color: 0xd97706, flatShading: true });
+        const stringMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, flatShading: true });
 
-        // Curved Bow Stave
+        // Curved Recurve Bow Stave & Riser Grip
         this.bowLimb = new THREE.Mesh(
-          new THREE.TorusGeometry(0.38, 0.022, 5, 12, Math.PI * 1.1),
+          new THREE.TorusGeometry(0.40, 0.020, 6, 16, Math.PI * 1.12),
           woodMat
         );
         this.bowLimb.rotation.y = Math.PI / 2;
-        this.bowLimb.rotation.z = -Math.PI * 0.55;
+        this.bowLimb.rotation.z = -Math.PI * 0.56;
         this.bowGroup.add(this.bowLimb);
 
-        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.05), gripMat);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.16, 0.048), gripMat);
+        grip.position.z = -0.39;
         this.bowGroup.add(grip);
 
-        // Nocked Arrow Preview
+        // Upper & Lower Recurve Horn Tips
+        [-0.39, 0.39].forEach((ty) => {
+          const tipCap = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.05, 0.05), hornTipMat);
+          tipCap.position.set(0, ty, -0.05);
+          this.bowGroup.add(tipCap);
+        });
+
+        // Dynamic Upper & Lower Bowstring Segments that pull back with the arrow nock
+        this.topString = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.40, 4), stringMat);
+        this.botString = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.40, 4), stringMat);
+        this.bowGroup.add(this.topString, this.botString);
+
+        // Nocked Arrow Preview with Broadhead & Feather Fletching
         this.nockedArrow = new THREE.Group();
         const shaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.01, 0.01, 0.72, 5),
-          new THREE.MeshStandardMaterial({ color: 0xd97706, flatShading: true })
+          new THREE.CylinderGeometry(0.009, 0.009, 0.76, 6),
+          new THREE.MeshStandardMaterial({ color: 0xb45309, flatShading: true })
         );
         shaft.rotation.x = Math.PI / 2;
         const tip = new THREE.Mesh(
-          new THREE.ConeGeometry(0.024, 0.09, 4),
-          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, flatShading: true })
+          new THREE.ConeGeometry(0.022, 0.095, 4),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, flatShading: true, metalness: 0.5 })
         );
         tip.rotation.x = -Math.PI / 2;
-        tip.position.z = -0.38;
-        this.nockedArrow.add(shaft, tip);
-        this.nockedArrow.position.set(-0.04, 0.02, -0.18);
+        tip.position.z = -0.40;
+        const fletch1 = new THREE.Mesh(
+          new THREE.BoxGeometry(0.055, 0.004, 0.13),
+          new THREE.MeshStandardMaterial({ color: 0xf8fafc, flatShading: true })
+        );
+        fletch1.position.z = 0.31;
+        const fletch2 = fletch1.clone();
+        fletch2.rotation.z = Math.PI / 2;
+        this.nockedArrow.add(shaft, tip, fletch1, fletch2);
+        this.nockedArrow.position.set(-0.03, 0.02, -0.18);
         this.bowGroup.add(this.nockedArrow);
 
         this.camera.add(this.bowGroup);
@@ -2602,6 +2801,15 @@
           });
         });
 
+        // Map Selector
+        document.querySelectorAll('#map-selector .seg-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('#map-selector .seg-btn').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.selectedMap = btn.dataset.map;
+          });
+        });
+
         // Class Selector
         document.querySelectorAll('#class-selector .seg-btn').forEach((btn) => {
           btn.addEventListener('click', () => {
@@ -2646,7 +2854,7 @@
           this.localName = (nameInput.value.trim() || 'Ranger').slice(0, 16);
           const statusEl = document.getElementById('lobby-status');
           statusEl.textContent = 'Matching into Public Arena...';
-          await this.joinMatchRoom('public-arena-1', '');
+          await this.joinMatchRoom(`public-${this.selectedMap}-1`, '');
         });
 
         // Private Room Join / Create
@@ -2661,7 +2869,7 @@
           const pass = document.getElementById('private-pass-input').value;
           window.location.hash = `room=${encodeURIComponent(code)}`;
           document.getElementById('lobby-status').textContent = `Connecting to Private Room ${code}...`;
-          await this.joinMatchRoom(`private-${code}`, pass);
+          await this.joinMatchRoom(`private-${this.selectedMap}-${code}`, pass);
         });
 
         // PointerLock unlock returns to lobby/pause menu
@@ -2675,6 +2883,8 @@
       }
 
       async joinMatchRoom(roomId, password) {
+        this.applySelectedMap(this.selectedMap);
+
         if (this.network.roomId !== roomId) {
           await this.network.connectToRoom(roomId, password);
         }
@@ -2713,7 +2923,29 @@
           document.getElementById('menu-overlay').style.display = 'none';
         });
         document.getElementById('menu-overlay').style.display = 'none';
-        this.showToast(`Joined ${this.localTeam.toUpperCase()} Team as ${clsCfg.label}`);
+        this.showToast(`Joined ${this.selectedMap.toUpperCase()} (${this.localTeam.toUpperCase()}) as ${clsCfg.label}`);
+      }
+
+      applySelectedMap(mapId) {
+        if (!mapId || this.world.mapId === mapId) return;
+        this.selectedMap = mapId;
+        this.world.setMap(mapId);
+
+        // Update map selector button highlight if synced from Host
+        document.querySelectorAll('#map-selector .seg-btn').forEach((b) => {
+          b.classList.toggle('active', b.dataset.map === mapId);
+        });
+
+        // Reset flags & clear stuck arrows onto the new arena pedestals
+        for (const team of ['blue', 'red']) {
+          this.flags[team].state = 'base';
+          this.flags[team].carrierId = null;
+          this.flags[team].pos.copy(this.world.pedestals[team]);
+        }
+        for (const a of this.arrows) {
+          this.scene.remove(a.mesh);
+        }
+        this.arrows = [];
       }
 
       updateRoleBadge(isHost) {
@@ -2947,16 +3179,32 @@
       // COLLISION & LINE-OF-SIGHT HELPERS
       // =======================================================================
       moveEntityWithCollisions(pos, vel, radius, height, dt, isBot = false) {
+        // Pre-check step-up height before horizontal X movement so ramp stairs lift smoothly instead of blocking
+        const nextX = pos.x + vel.x * dt;
+        for (const box of this.world.colliders) {
+          if (box.isStep &&
+              pos.y + height > box.minY + 0.02 && pos.y < box.maxY &&
+              pos.z + radius > box.minZ && pos.z - radius < box.maxZ &&
+              nextX + radius > box.minX && nextX - radius < box.maxX) {
+            const stepHeight = box.maxY - pos.y;
+            if (stepHeight > 0 && stepHeight <= 0.55) {
+              pos.y = box.maxY;
+              if (vel.y < 0) vel.y = 0;
+            }
+          }
+        }
+
         // Horizontal X
-        pos.x += vel.x * dt;
-        for (let pass = 0; pass < 2; pass++) {
+        pos.x = nextX;
+        for (let pass = 0; pass < 3; pass++) {
           for (const box of this.world.colliders) {
             if (pos.y + height > box.minY + 0.04 && pos.y < box.maxY - 0.04 &&
                 pos.z + radius > box.minZ && pos.z - radius < box.maxZ &&
                 pos.x + radius > box.minX && pos.x - radius < box.maxX) {
               const stepHeight = box.maxY - pos.y;
-              if (box.isStep && stepHeight > 0 && stepHeight <= 0.45) {
+              if (box.isStep && stepHeight > 0 && stepHeight <= 0.55) {
                 pos.y = box.maxY;
+                if (vel.y < 0) vel.y = 0;
               } else {
                 const penLeft = (pos.x + radius) - box.minX;
                 const penRight = box.maxX - (pos.x - radius);
@@ -2970,16 +3218,32 @@
           }
         }
 
+        // Pre-check step-up height before horizontal Z movement
+        const nextZ = pos.z + vel.z * dt;
+        for (const box of this.world.colliders) {
+          if (box.isStep &&
+              pos.y + height > box.minY + 0.02 && pos.y < box.maxY &&
+              pos.x + radius > box.minX && pos.x - radius < box.maxX &&
+              nextZ + radius > box.minZ && nextZ - radius < box.maxZ) {
+            const stepHeight = box.maxY - pos.y;
+            if (stepHeight > 0 && stepHeight <= 0.55) {
+              pos.y = box.maxY;
+              if (vel.y < 0) vel.y = 0;
+            }
+          }
+        }
+
         // Horizontal Z
-        pos.z += vel.z * dt;
-        for (let pass = 0; pass < 2; pass++) {
+        pos.z = nextZ;
+        for (let pass = 0; pass < 3; pass++) {
           for (const box of this.world.colliders) {
             if (pos.y + height > box.minY + 0.04 && pos.y < box.maxY - 0.04 &&
                 pos.x + radius > box.minX && pos.x - radius < box.maxX &&
                 pos.z + radius > box.minZ && pos.z - radius < box.maxZ) {
               const stepHeight = box.maxY - pos.y;
-              if (box.isStep && stepHeight > 0 && stepHeight <= 0.45) {
+              if (box.isStep && stepHeight > 0 && stepHeight <= 0.55) {
                 pos.y = box.maxY;
+                if (vel.y < 0) vel.y = 0;
               } else {
                 const penFront = (pos.z + radius) - box.minZ;
                 const penBack = box.maxZ - (pos.z - radius);
@@ -3188,6 +3452,10 @@
 
       applyHostWorldSync(snap) {
         if (!snap) return;
+        if (snap.mapId && snap.mapId !== this.world.mapId) {
+          this.applySelectedMap(snap.mapId);
+          this.respawnLocalPlayer();
+        }
         this.scores = snap.scores;
         for (const team of ['blue', 'red']) {
           const fs = snap.flags[team];
@@ -3354,35 +3622,53 @@
             this.playerVel.x += (targetVx - this.playerVel.x) * blend;
             this.playerVel.z += (targetVz - this.playerVel.z) * blend;
           } else {
-            const friction = Math.min(1, (this.playerGrounded ? 10.0 : 2.5) * dt);
-            this.playerVel.x *= (1 - friction);
-            this.playerVel.z *= (1 - friction);
+            const damp = Math.max(0, 1 - 10 * dt);
+            this.playerVel.x *= damp;
+            this.playerVel.z *= damp;
           }
 
           this.playerVel.y += GRAVITY * dt;
-          this.moveEntityWithCollisions(this.playerPos, this.playerVel, 0.44, 1.85, dt, false);
+          this.moveEntityWithCollisions(this.playerPos, this.playerVel, 0.42, 1.8, dt, false);
 
-          // Position Eye Camera with subtle natural footsteps head-bob
+          // Subtle footstep head-bob when moving on ground
           const horizSpeed = Math.hypot(this.playerVel.x, this.playerVel.z);
-          if (this.playerGrounded && horizSpeed > 0.4) {
-            this.walkBobTime = (this.walkBobTime || 0) + dt * horizSpeed * 1.45;
-          } else {
-            this.walkBobTime = 0;
-          }
-          const bobOffset = (this.playerGrounded && horizSpeed > 0.4)
-            ? Math.sin(this.walkBobTime) * 0.045
+          const bobOffset = (this.playerGrounded && horizSpeed > 0.6)
+            ? Math.sin(now * 0.011) * 0.045 * Math.min(1, horizSpeed / clsCfg.moveSpeed)
             : 0;
-          this.camera.position.set(this.playerPos.x, this.playerPos.y + 1.62 + bobOffset, this.playerPos.z);
+          this.camera.position.set(this.playerPos.x, this.playerPos.y + 1.64 + bobOffset, this.playerPos.z);
 
-          // Update Bow Charge & Visual Pullback
+          // Update Bow Charge, Bow Limb Flex & Bowstring Pullback
           if (this.controls.isDrawing) {
             this.controls.charge = Math.min(1, this.controls.charge + dt / clsCfg.drawTime);
           }
 
           const c = this.controls.charge;
-          this.nockedArrow.position.z = -0.18 + c * 0.28;
-          this.bowGroup.position.z = -0.52 + c * 0.08;
+          const nockZ = 0.14 + c * 0.28;
+          this.nockedArrow.position.z = -0.22 + c * 0.28;
+          this.bowGroup.position.z = -0.50 + c * 0.08;
           this.bowGroup.position.x = 0.32 - c * 0.09;
+          this.bowLimb.scale.z = 1.0 + c * 0.16;
+
+          // Update Upper & Lower Bowstring Geometry to connect bow tips to nock point
+          const topTip = new THREE.Vector3(0, 0.39, -0.05);
+          const botTip = new THREE.Vector3(0, -0.39, -0.05);
+          const nockPt = new THREE.Vector3(-0.03, 0.02, nockZ);
+
+          const topMid = new THREE.Vector3().addVectors(topTip, nockPt).multiplyScalar(0.5);
+          this.topString.position.copy(topMid);
+          this.topString.scale.y = topTip.distanceTo(nockPt) / 0.40;
+          this.topString.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3().subVectors(topTip, nockPt).normalize()
+          );
+
+          const botMid = new THREE.Vector3().addVectors(botTip, nockPt).multiplyScalar(0.5);
+          this.botString.position.copy(botMid);
+          this.botString.scale.y = botTip.distanceTo(nockPt) / 0.40;
+          this.botString.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3().subVectors(nockPt, botTip).normalize()
+          );
 
           // Dynamic Crosshair & Charge Arc
           const spread = 14 - c * 9;
@@ -3447,6 +3733,7 @@
             }));
 
             this.network.broadcastWorldSync({
+              mapId: this.world.mapId,
               scores: this.scores,
               matchOver: this.matchOver,
               flags: {
